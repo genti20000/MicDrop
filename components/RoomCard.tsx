@@ -1,7 +1,6 @@
 import React from 'react';
 import { Room } from '../types';
 import { Users, Music, Star } from 'lucide-react';
-import { formatCurrency } from '../services/pricing';
 
 interface RoomCardProps {
   room: Room;
@@ -27,7 +26,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, selected, onSelect }) 
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-xl font-bold text-white">{room.name}</h3>
           <span className="bg-zinc-800 text-zinc-300 text-xs font-semibold px-2 py-1 rounded">
-            {formatCurrency(room.pricePerHour)}/hr
+            £19 pp
           </span>
         </div>
 
@@ -36,7 +35,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, selected, onSelect }) 
         <div className="flex items-center space-x-4 text-sm text-zinc-300 mb-4">
           <div className="flex items-center">
             <Users size={16} className="mr-1.5 text-neon-cyan" />
-            {room.capacity}
+            Max {room.capacity}
           </div>
           <div className="flex items-center">
             <Music size={16} className="mr-1.5 text-neon-pink" />

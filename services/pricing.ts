@@ -1,29 +1,31 @@
 import { Room, PricingBreakdown } from "../types";
 
 export const calculatePrice = (
-  room: Room,
   duration: number,
-  dateString: string
+  guests: number
 ): PricingBreakdown => {
-  const basePrice = room.pricePerHour * duration;
-  
-  const date = new Date(dateString);
-  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
-  const isWeekend = day === 5 || day === 6; // Friday or Saturday
-  
-  const surcharge = isWeekend ? basePrice * 0.2 : 0;
-  
+  const PRICE_PER_PERSON = 19;
+  const PRICE_EXTRA_HOUR = 90;
+
+  // Base price is driven by guest count (covers first hour)
+  const perPersonTotal = guests * PRICE_PER_PERSON;
+
+  // Extra hours calculation (subtract 1 from duration, min 0)
+  const extraHours = Math.max(0, duration - 1);
+  const extraTimeTotal = extraHours * PRICE_EXTRA_HOUR;
+
   return {
-    basePrice,
-    isWeekend,
-    surcharge,
-    total: basePrice + surcharge
+    perPersonTotal,
+    extraTimeTotal,
+    total: perPersonTotal + extraTimeTotal
   };
 };
 
 export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: 'GBP'
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 };

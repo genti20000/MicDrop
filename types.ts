@@ -2,7 +2,6 @@ export interface Room {
   id: string;
   name: string;
   capacity: number;
-  pricePerHour: number; // in GBP
   features: string[];
   gradient: string;
   description: string;
@@ -39,8 +38,7 @@ export interface ConfirmedBooking {
 }
 
 export interface PricingBreakdown {
-  basePrice: number;
-  isWeekend: boolean;
-  surcharge: number;
+  perPersonTotal: number;
+  extraTimeTotal: number;
   total: number;
 }

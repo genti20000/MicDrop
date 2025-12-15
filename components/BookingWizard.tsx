@@ -22,7 +22,7 @@ const INITIAL_STATE: BookingState = {
   date: new Date().toISOString().split('T')[0],
   time: '20:00',
   duration: 2,
-  guests: 4,
+  guests: 8, // Minimum 8 people
   customer: {
     name: '',
     email: '',
@@ -36,9 +36,9 @@ export const BookingWizard: React.FC = () => {
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
 
   const selectedRoom = ROOMS.find(r => r.id === state.selectedRoomId);
-  const pricing = selectedRoom 
-    ? calculatePrice(selectedRoom, state.duration, state.date) 
-    : null;
+  
+  // Calculate price based on duration and guests
+  const pricing = calculatePrice(state.duration, state.guests);
 
   const nextStep = () => setState(prev => ({ ...prev, step: prev.step + 1 }));
   const prevStep = () => setState(prev => ({ ...prev, step: prev.step - 1 }));
@@ -81,6 +81,7 @@ export const BookingWizard: React.FC = () => {
              <div className="flex justify-between"><span className="text-zinc-500">Room</span> <span className="text-white">{selectedRoom?.name}</span></div>
              <div className="flex justify-between"><span className="text-zinc-500">Date</span> <span className="text-white">{format(new Date(state.date), 'EEE, d MMM yyyy')}</span></div>
              <div className="flex justify-between"><span className="text-zinc-500">Time</span> <span className="text-white">{state.time} ({state.duration} hrs)</span></div>
+             <div className="flex justify-between border-t border-zinc-800 pt-2 mt-2"><span className="text-zinc-500">Total</span> <span className="text-neon-cyan font-bold">{formatCurrency(pricing.total)}</span></div>
            </div>
         </div>
         <Button onClick={() => window.location.reload()}>Book Another</Button>
@@ -97,7 +98,7 @@ export const BookingWizard: React.FC = () => {
         <div className="space-y-6">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-purple to-neon-cyan">Choose Your Stage</h2>
-            <p className="text-zinc-400 mt-2">Select a room that fits your crew.</p>
+            <p className="text-zinc-400 mt-2">£19 per person. Minimum 8 people.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {ROOMS.map(room => (
@@ -157,38 +158,42 @@ export const BookingWizard: React.FC = () => {
             </div>
 
             <Input 
-              label="Number of Guests" 
+              label={`Number of Guests (Min 8, Max ${selectedRoom?.capacity})`} 
               type="number"
-              min={1}
+              min={8}
               max={selectedRoom?.capacity || 20}
               value={state.guests}
-              onChange={(e) => setState(prev => ({ ...prev, guests: Number(e.target.value) }))}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setState(prev => ({ ...prev, guests: val }));
+              }}
             />
+            {state.guests < 8 && (
+               <p className="text-red-500 text-sm">Minimum 8 guests required.</p>
+            )}
 
             {/* Price Preview */}
-            {pricing && (
-              <div className="mt-6 p-4 bg-black rounded-lg border border-zinc-800">
-                <div className="flex justify-between text-sm text-zinc-400 mb-1">
-                  <span>Base Price</span>
-                  <span>{formatCurrency(pricing.basePrice)}</span>
-                </div>
-                {pricing.isWeekend && (
-                  <div className="flex justify-between text-sm text-neon-pink mb-1">
-                    <span>Weekend Surcharge (+20%)</span>
-                    <span>+{formatCurrency(pricing.surcharge)}</span>
-                  </div>
-                )}
-                <div className="border-t border-zinc-800 my-2 pt-2 flex justify-between font-bold text-lg text-white">
-                  <span>Total</span>
-                  <span>{formatCurrency(pricing.total)}</span>
-                </div>
+            <div className="mt-6 p-4 bg-black rounded-lg border border-zinc-800">
+              <div className="flex justify-between text-sm text-zinc-400 mb-1">
+                <span>Rate ({state.guests} guests × £19)</span>
+                <span>{formatCurrency(pricing.perPersonTotal)}</span>
               </div>
-            )}
+              {pricing.extraTimeTotal > 0 && (
+                <div className="flex justify-between text-sm text-neon-pink mb-1">
+                  <span>Extra Time (+{state.duration - 1} hrs × £90)</span>
+                  <span>+{formatCurrency(pricing.extraTimeTotal)}</span>
+                </div>
+              )}
+              <div className="border-t border-zinc-800 my-2 pt-2 flex justify-between font-bold text-lg text-white">
+                <span>Total</span>
+                <span>{formatCurrency(pricing.total)}</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-4 mt-8">
             <Button variant="secondary" onClick={prevStep}>Back</Button>
-            <Button className="flex-1" onClick={nextStep}>Next: Details</Button>
+            <Button className="flex-1" onClick={nextStep} disabled={state.guests < 8}>Next: Details</Button>
           </div>
         </div>
       )}
@@ -243,7 +248,7 @@ export const BookingWizard: React.FC = () => {
       )}
 
       {/* --- Step 4: Payment --- */}
-      {state.step === 4 && pricing && (
+      {state.step === 4 && (
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
              <h2 className="text-2xl font-bold mb-2">Secure Checkout</h2>

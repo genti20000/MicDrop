@@ -17,17 +17,15 @@ export const ROOMS: Room[] = [
   {
     id: "neon-den",
     name: "The Neon Den",
-    capacity: 4,
-    pricePerHour: 30,
+    capacity: 8,
     features: ["Soundproof", "4K Screen", "Ring Light"],
     gradient: "from-pink-500 to-rose-500",
-    description: "Intimate vibe for small groups."
+    description: "Compact vibe, expanded for groups."
   },
   {
     id: "disco-lounge",
     name: "Disco Lounge",
-    capacity: 8,
-    pricePerHour: 50,
+    capacity: 12,
     features: ["Disco Ball", "Smoke Machine", "Dual Mics"],
     gradient: "from-violet-600 to-indigo-600",
     description: "Perfect for parties and celebrations."
@@ -35,8 +33,7 @@ export const ROOMS: Room[] = [
   {
     id: "rockstar-suite",
     name: "Rockstar Suite",
-    capacity: 15,
-    pricePerHour: 80,
+    capacity: 20,
     features: ["Private Bar", "Stage", "Pro Audio"],
     gradient: "from-cyan-500 to-blue-500",
     description: "The ultimate VIP experience."
@@ -44,8 +41,7 @@ export const ROOMS: Room[] = [
   {
     id: "platinum-vip",
     name: "Platinum VIP",
-    capacity: 25,
-    pricePerHour: 120,
+    capacity: 50,
     features: ["Butler Service", "Panoramic View", "Laser Show"],
     gradient: "from-amber-400 to-orange-500",
     description: "Luxury without compromise."
