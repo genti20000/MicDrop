@@ -2,7 +2,16 @@ import { Room } from "./types";
 
 // NOTE: In a real app, use an environment variable for the key
 export const STRIPE_PUBLISHABLE_KEY = "pk_test_51O7S8dG8X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5"; 
-export const API_URL = "http://localhost:3001/api"; // Backend endpoint
+
+// Safely check if we are in production. 
+// import.meta.env comes from Vite. If it's undefined, we default to development.
+const env = (import.meta as any).env;
+const isProd = env ? env.PROD : false;
+
+// Use relative path in production (Vercel), absolute path for local dev
+export const API_URL = isProd
+  ? "/api" 
+  : "http://localhost:3001/api";
 
 export const ROOMS: Room[] = [
   {
