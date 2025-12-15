@@ -35,7 +35,12 @@ export default function RootLayout({
           {children}
         </main>
         <footer className="py-8 text-center text-slate-600 text-sm border-t border-slate-900">
-          <p>© {new Date().getFullYear()} MicDrop Karaoke. All rights reserved.</p>
+          <div className="flex flex-col gap-2">
+            <p>© {new Date().getFullYear()} MicDrop Karaoke. All rights reserved.</p>
+            <Link href="/admin" className="text-slate-800 hover:text-slate-500 transition-colors text-xs">
+              Admin Portal
+            </Link>
+          </div>
         </footer>
       </body>
     </html>
