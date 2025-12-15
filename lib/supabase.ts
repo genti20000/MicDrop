@@ -1,45 +1,24 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const getEnv = (key: string): string | undefined => {
-  if (typeof process !== 'undefined' && process.env && process.env[key] !== undefined) {
+// Helper to handle environment variables in different environments (Next.js vs Vite vs Browser)
+const getEnvVar = (key: string) => {
+  // Check for process.env
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
     return process.env[key];
   }
-
-  if (typeof window !== 'undefined') {
-    const w = window as any;
-    if (w.__ENV && w.__ENV[key] !== undefined) return w.__ENV[key];
-    if (w[key] !== undefined) return w[key];
-  }
-
-  return undefined;
+  return '';
 };
 
-const supabaseUrl = getEnv('NEXT_PUBLIC_SUPABASE_URL') ?? '';
-const supabaseAnonKey = getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') ?? '';
-const supabaseServiceKey = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+// Use fallbacks to prevent crash if env vars are missing (e.g. during build or initial preview)
+const supabaseUrl = getEnvVar('NEXT_PUBLIC_SUPABASE_URL') || 'https://placeholder.supabase.co';
+const supabaseAnonKey = getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY') || 'placeholder-key';
+const supabaseServiceKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!supabaseUrl) {
-  // eslint-disable-next-line no-console
-  console.warn('[supabase] NEXT_PUBLIC_SUPABASE_URL is not defined. Supabase client will be created with an empty URL.');
-}
-
-if (!supabaseAnonKey) {
-  // eslint-disable-next-line no-console
-  console.warn('[supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined. Client-side operations will likely fail.');
-}
-
+// Client-side / Public usage
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Create admin client only on server to avoid bundling service key into browser.
-// If imported on the client, this will return the regular client instead.
-export const supabaseAdmin = (() => {
-  if (typeof window === 'undefined') {
-    const key = supabaseServiceKey ?? supabaseAnonKey;
-    if (!supabaseServiceKey) {
-      // eslint-disable-next-line no-console
-      console.warn('[supabase] SUPABASE_SERVICE_ROLE_KEY is not defined. Admin client will use anon key and will be permission-limited.');
-    }
-    return createClient(supabaseUrl, key);
-  }
-  return createClient(supabaseUrl, supabaseAnonKey);
-})();
+// Server-side / Admin usage (Bypasses RLS)
+// Use service key if available, otherwise fall back to anon key to prevent crash.
+// Admin operations will fail permissions if service key is missing, which is expected/secure.
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
