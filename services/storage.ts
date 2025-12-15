@@ -1,52 +1,47 @@
-import { ConfirmedBooking } from "../types";
-import { API_URL } from "../constants";
 
-const getHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-};
+import { supabase } from '../lib/supabase';
+import { ConfirmedBooking } from '../types';
+import { API_URL } from '../constants';
 
-export const saveBooking = async (booking: ConfirmedBooking): Promise<void> => {
-  const response = await fetch(`${API_URL}/bookings`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(booking),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to save booking to database');
-  }
+export const saveBooking = async (booking: any): Promise<void> => {
+  // This is now mostly handled by server-side sumup confirmation
+  // But if we need manual save:
+  const { error } = await supabase
+    .from('bookings')
+    .insert([booking]);
+    
+  if (error) throw new Error(error.message);
 };
 
 export const getBookings = async (): Promise<ConfirmedBooking[]> => {
-  const response = await fetch(`${API_URL}/bookings`, {
-    headers: getHeaders()
-  });
-  
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('Unauthorized');
-  }
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, venues(name)')
+    .order('created_at', { ascending: false });
 
-  if (!response.ok) {
-    console.error("Failed to fetch bookings");
-    return [];
-  }
-  return response.json();
+  if (error) throw new Error(error.message);
+  
+  // Transform to match ConfirmedBooking interface if needed
+  return data.map((b: any) => ({
+    id: b.id,
+    booking_ref: b.booking_ref,
+    roomName: b.venues?.name + ' - ' + b.room_type,
+    date: b.date,
+    time: b.start_time,
+    duration: b.duration_hours,
+    totalPrice: b.total_gbp,
+    status: b.status,
+    customer: { name: b.name, email: b.email, phone: b.phone }
+  })) as unknown as ConfirmedBooking[];
 };
 
 export const deleteBooking = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/bookings/${id}`, {
-    method: 'DELETE',
-    headers: getHeaders()
-  });
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' }) // Soft delete/cancel
+    .eq('id', id);
 
-  if (!response.ok) {
-    throw new Error('Failed to delete booking');
-  }
+  if (error) throw new Error(error.message);
 };
 
 export interface BusySlot {
@@ -55,10 +50,9 @@ export interface BusySlot {
 }
 
 export const fetchAvailability = async (roomId: string, date: string): Promise<BusySlot[]> => {
+  // Use the API route for availability to keep logic centralized or use Supabase RPC
+  // For now, let's call the API route we defined (or should define) or simple query
   const response = await fetch(`${API_URL}/availability?roomId=${roomId}&date=${date}`);
-  if (!response.ok) {
-    console.error("Failed to fetch availability");
-    return [];
-  }
+  if (!response.ok) return [];
   return response.json();
 };

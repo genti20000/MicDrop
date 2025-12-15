@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 import { format } from 'date-fns';
 import { CheckCircle, Calendar, User, AlertCircle } from 'lucide-react';
 
-import { STRIPE_PUBLISHABLE_KEY, ROOMS, DURATIONS, TIMES } from '../constants';
+import { ROOMS, DURATIONS, TIMES } from '../constants';
 import { RoomCard } from './RoomCard';
 import { StepIndicator } from './StepIndicator';
 import { Button } from './ui/Button';
@@ -14,8 +12,6 @@ import { calculatePrice, formatCurrency } from '../services/pricing';
 import { saveBooking, fetchAvailability, BusySlot } from '../services/storage';
 import { BookingState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 const INITIAL_STATE: BookingState = {
   step: 1,
@@ -83,7 +79,7 @@ export const BookingWizard: React.FC = () => {
     });
   };
 
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (transactionId: string) => {
     if (!selectedRoom || !pricing || !state.selectedRoomId) return;
 
     setIsSaving(true);
@@ -98,7 +94,7 @@ export const BookingWizard: React.FC = () => {
       duration: state.duration,
       totalPrice: pricing.total,
       customer: state.customer,
-      paymentIntentId,
+      paymentIntentId: transactionId, // Storing SumUp ID here
       status: 'confirmed' as const,
       timestamp: Date.now()
     };
@@ -326,20 +322,26 @@ export const BookingWizard: React.FC = () => {
              <p className="text-zinc-400">Complete your booking for <span className="text-white font-bold">{selectedRoom?.name}</span></p>
           </div>
 
-          <Elements stripe={stripePromise}>
-            {isSaving ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-purple mx-auto mb-4"></div>
-                <p className="text-zinc-400">Finalizing your booking...</p>
-              </div>
-            ) : (
-              <PaymentForm 
-                amount={pricing.total} 
-                onBack={prevStep}
-                onSuccess={handlePaymentSuccess}
-              />
-            )}
-          </Elements>
+          {isSaving ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-purple mx-auto mb-4"></div>
+              <p className="text-zinc-400">Finalizing your booking...</p>
+            </div>
+          ) : (
+            <PaymentForm 
+              amount={pricing.total} 
+              onBack={prevStep}
+              onSuccess={handlePaymentSuccess}
+              metadata={{
+                roomId: state.selectedRoomId,
+                roomName: selectedRoom?.name,
+                date: state.date,
+                time: state.time,
+                duration: state.duration,
+                customerEmail: state.customer.email
+              }}
+            />
+          )}
         </div>
       )}
     </div>
