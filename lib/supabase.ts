@@ -11,14 +11,14 @@ const getEnvVar = (key: string) => {
 };
 
 // Use fallbacks to prevent crash if env vars are missing (e.g. during build or initial preview)
-const supabaseUrl = getEnvVar('NEXT_PUBLIC_SUPABASE_URL') || 'https://placeholder.supabase.co';
-const supabaseAnonKey = getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY') || 'placeholder-key';
+export const SUPABASE_URL = getEnvVar('NEXT_PUBLIC_SUPABASE_URL') || 'https://placeholder.supabase.co';
+export const SUPABASE_ANON_KEY = getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY') || 'placeholder-key';
 const supabaseServiceKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
 
 // Client-side / Public usage
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Server-side / Admin usage (Bypasses RLS)
 // Use service key if available, otherwise fall back to anon key to prevent crash.
 // Admin operations will fail permissions if service key is missing, which is expected/secure.
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
+export const supabaseAdmin = createClient(SUPABASE_URL, supabaseServiceKey || SUPABASE_ANON_KEY);

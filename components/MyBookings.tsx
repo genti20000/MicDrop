@@ -12,7 +12,7 @@ interface MyBookingsProps {
 }
 
 export const MyBookings: React.FC<MyBookingsProps> = ({ onLoginRequest }) => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<ConfirmedBooking[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,9 +28,9 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ onLoginRequest }) => {
   };
 
   useEffect(() => {
-    if (token) fetchBookings();
+    if (user) fetchBookings();
     else setLoading(false);
-  }, [token]);
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to cancel this booking?')) {
@@ -80,7 +80,7 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ onLoginRequest }) => {
     <div className="max-w-2xl mx-auto py-8 px-4 space-y-4">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">My Sessions</h2>
-        <span className="text-sm text-zinc-500">Welcome, {user.name}</span>
+        <span className="text-sm text-zinc-500">Welcome, {user.user_metadata?.name || user.email}</span>
       </div>
       
       {bookings.map((booking) => (

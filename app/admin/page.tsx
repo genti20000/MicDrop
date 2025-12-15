@@ -1,13 +1,37 @@
 
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Database } from '@/types/supabase'; // Assuming generic or any
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 
 export default async function AdminDashboard() {
-  const supabase = createServerComponentClient({ cookies });
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  );
   
   // 1. Check Auth & Admin Role
   const { data: { session } } = await supabase.auth.getSession();
@@ -29,8 +53,8 @@ export default async function AdminDashboard() {
     .limit(50);
 
   // Stats
-  const totalRevenue = bookings?.reduce((acc, b) => b.status === 'confirmed' ? acc + b.total_gbp : acc, 0) || 0;
-  const pendingCount = bookings?.filter(b => b.status === 'confirmed').length || 0;
+  const totalRevenue = bookings?.reduce((acc: any, b: any) => b.status === 'confirmed' ? acc + b.total_gbp : acc, 0) || 0;
+  const pendingCount = bookings?.filter((b: any) => b.status === 'confirmed').length || 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -70,7 +94,7 @@ export default async function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {bookings?.map((b) => (
+              {bookings?.map((b: any) => (
                 <tr key={b.id} className="hover:bg-slate-800/50">
                   <td className="px-6 py-4 font-mono text-cyan-500">{b.booking_ref}</td>
                   <td className="px-6 py-4">{(b.venues as any)?.name}</td>
