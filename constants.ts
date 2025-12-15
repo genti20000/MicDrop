@@ -3,6 +3,10 @@ import { Room } from "./types";
 // NOTE: In a real app, use an environment variable for the key
 export const STRIPE_PUBLISHABLE_KEY = "pk_test_51O7S8dG8X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5X5d5"; 
 
+// ⚠️ SECURITY WARNING: This secret is for local testing/demo only. 
+// In production, keep this in a server-side .env file and NEVER expose it to the client bundle.
+export const STRIPE_WEBHOOK_SECRET = "whsec_example_secret_for_testing_12345";
+
 // Safely check if we are in production. 
 // import.meta.env comes from Vite. If it's undefined, we default to development.
 const env = (import.meta as any).env;
@@ -17,15 +21,17 @@ export const ROOMS: Room[] = [
   {
     id: "neon-den",
     name: "The Neon Den",
-    capacity: 8,
+    capacity: 4,
+    pricePerHour: 30,
     features: ["Soundproof", "4K Screen", "Ring Light"],
     gradient: "from-pink-500 to-rose-500",
-    description: "Compact vibe, expanded for groups."
+    description: "Intimate vibe for small groups."
   },
   {
     id: "disco-lounge",
     name: "Disco Lounge",
-    capacity: 12,
+    capacity: 8,
+    pricePerHour: 50,
     features: ["Disco Ball", "Smoke Machine", "Dual Mics"],
     gradient: "from-violet-600 to-indigo-600",
     description: "Perfect for parties and celebrations."
@@ -33,7 +39,8 @@ export const ROOMS: Room[] = [
   {
     id: "rockstar-suite",
     name: "Rockstar Suite",
-    capacity: 20,
+    capacity: 15,
+    pricePerHour: 80,
     features: ["Private Bar", "Stage", "Pro Audio"],
     gradient: "from-cyan-500 to-blue-500",
     description: "The ultimate VIP experience."
@@ -41,7 +48,8 @@ export const ROOMS: Room[] = [
   {
     id: "platinum-vip",
     name: "Platinum VIP",
-    capacity: 50,
+    capacity: 25,
+    pricePerHour: 120,
     features: ["Butler Service", "Panoramic View", "Laser Show"],
     gradient: "from-amber-400 to-orange-500",
     description: "Luxury without compromise."

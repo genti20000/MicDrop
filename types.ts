@@ -2,9 +2,16 @@ export interface Room {
   id: string;
   name: string;
   capacity: number;
+  pricePerHour: number; // in GBP
   features: string[];
   gradient: string;
   description: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export interface CustomerDetails {
@@ -26,6 +33,8 @@ export interface BookingState {
 
 export interface ConfirmedBooking {
   id: string;
+  userId?: string; // Optional: Guest bookings might not have an ID
+  roomId: string;
   roomName: string;
   date: string;
   time: string;
@@ -38,7 +47,8 @@ export interface ConfirmedBooking {
 }
 
 export interface PricingBreakdown {
-  perPersonTotal: number;
-  extraTimeTotal: number;
+  basePrice: number;
+  isWeekend: boolean;
+  surcharge: number;
   total: number;
 }

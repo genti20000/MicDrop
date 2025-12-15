@@ -1,24 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { getBookings, deleteBooking } from '../services/storage';
 import { ConfirmedBooking } from '../types';
-import { Trash2, Calendar, Clock, Music } from 'lucide-react';
+import { Trash2, Calendar, Clock, Music, LogIn } from 'lucide-react';
 import { formatCurrency } from '../services/pricing';
 import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/Button';
 
-export const MyBookings: React.FC = () => {
+interface MyBookingsProps {
+  onLoginRequest: () => void;
+}
+
+export const MyBookings: React.FC<MyBookingsProps> = ({ onLoginRequest }) => {
+  const { user, token } = useAuth();
   const [bookings, setBookings] = useState<ConfirmedBooking[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setBookings(getBookings());
-  }, []);
-
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to cancel this booking?')) {
-      deleteBooking(id);
-      setBookings(getBookings());
+  const fetchBookings = async () => {
+    try {
+      const data = await getBookings();
+      setBookings(data);
+    } catch (error) {
+      console.error("Error loading bookings", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (token) fetchBookings();
+    else setLoading(false);
+  }, [token]);
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+      try {
+        await deleteBooking(id);
+        fetchBookings();
+      } catch (error) {
+        alert("Failed to cancel booking");
+      }
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="text-center py-20 px-6">
+        <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 text-neon-purple">
+          <LogIn size={32} />
+        </div>
+        <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
+        <p className="text-zinc-500 mb-8 max-w-sm mx-auto">Please sign in to view and manage your scheduled sessions.</p>
+        <Button onClick={onLoginRequest}>Sign In</Button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neon-purple"></div>
+      </div>
+    );
+  }
 
   if (bookings.length === 0) {
     return (
@@ -34,7 +78,11 @@ export const MyBookings: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 space-y-4">
-      <h2 className="text-2xl font-bold mb-6">My Sessions</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">My Sessions</h2>
+        <span className="text-sm text-zinc-500">Welcome, {user.name}</span>
+      </div>
+      
       {bookings.map((booking) => (
         <div key={booking.id} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors">
           <div className="flex justify-between items-start mb-4">

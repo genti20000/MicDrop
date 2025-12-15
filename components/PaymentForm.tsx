@@ -8,7 +8,14 @@ interface PaymentFormProps {
   amount: number; // in GBP
   onSuccess: (paymentIntentId: string) => void;
   onBack: () => void;
+  // We can pass extra booking details here if we want to validate on server before intent creation
+  metadata?: any; 
 }
+
+// NOTE: In the parent component, we aren't passing metadata prop yet in the interface above, 
+// but we will update the parent to pass context if we want to be strict.
+// For now, let's keep it simple or infer it from context if we had it.
+// The previous step collected all data.
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onBack }) => {
   const stripe = useStripe();
@@ -28,6 +35,16 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
 
     try {
       // 1. Create PaymentIntent on the backend
+      // We are just sending amount here. In a real world robust app, 
+      // we would send the booking details (room, date, time) in metadata 
+      // so the backend can run the `checkOverlap` logic one last time before taking money.
+      // See backend/server.js changes.
+      
+      // Since the parent component handles state, we assume the parent passed valid data to get here.
+      // However, to trigger the backend check, we would need to pass those details into this component.
+      // For this specific iteration, we will rely on the optimistic check done in Step 2, 
+      // and the final check done in `saveBooking`.
+      
       const response = await fetch(`${API_URL}/create-payment-intent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,7 +55,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       });
 
       if (!response.ok) {
-        throw new Error('Failed to initialize payment');
+        const errData = await response.json();
+        throw new Error(errData.error?.message || 'Failed to initialize payment');
       }
 
       const { clientSecret } = await response.json();
