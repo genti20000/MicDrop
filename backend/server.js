@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,9 +11,9 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_change_in_prod';
 
 // SumUp Configuration
-const SUMUP_API_KEY = process.env.SUMUP_API_KEY;
-// The merchant email used to register the SumUp account
-const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'merchant@example.com'; 
+// FALLBACK: Use provided credentials if env vars are missing
+const SUMUP_API_KEY = process.env.SUMUP_API_KEY || 'sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr';
+const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com'; 
 
 app.use(cors());
 app.use(express.json());
@@ -292,8 +293,11 @@ app.delete('/api/bookings/:id', authenticateRequired, async (req, res) => {
 });
 
 // --- SUMUP PAYMENT ENDPOINT ---
-app.post('/api/create-sumup-checkout', async (req, res) => {
-  const { amount, currency = 'GBP', metadata } = req.body;
+// Updated Route to match frontend: /api/sumup/create-checkout
+app.post('/api/sumup/create-checkout', async (req, res) => {
+  // Frontend sends a flat object, so we spread rest into metadata for checks
+  const { amount, currency = 'GBP', ...rest } = req.body;
+  const metadata = rest; 
   
   // 1. Availability Check
   if (metadata && metadata.roomId) {
@@ -302,20 +306,14 @@ app.post('/api/create-sumup-checkout', async (req, res) => {
         metadata.roomId, 
         metadata.date, 
         metadata.time, 
-        parseInt(metadata.duration)
+        parseInt(metadata.duration || metadata.durationHours || 2)
       );
-      if (isBooked) return res.status(409).send({ error: { message: "Slot taken." } });
+      if (isBooked) return res.status(409).send({ error: "Slot taken." });
     } catch (e) { /* ignore */ }
   }
 
   // 2. SumUp Integration
   try {
-    // FALLBACK: If no SumUp API key is present, return a mock checkout ID for UI testing
-    if (!SUMUP_API_KEY) {
-       console.log('⚠️ No SumUp API Key found. Returning MOCK checkout.');
-       return res.json({ id: 'mock-checkout-' + Date.now() });
-    }
-
     // Call SumUp API to create a checkout resource
     const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
@@ -334,15 +332,17 @@ app.post('/api/create-sumup-checkout', async (req, res) => {
 
     if (!response.ok) {
       const err = await response.json();
+      // If unauthorized, it might be because the key is a Public Key not meant for this endpoint
+      console.error('SumUp API Error:', err);
       throw new Error(err.message || 'SumUp API error');
     }
 
     const data = await response.json();
-    res.json({ id: data.id });
+    res.json({ id: data.id, checkoutId: data.id });
     
   } catch (e) {
-    console.error('SumUp Error:', e);
-    res.status(500).send({ error: { message: e.message } });
+    console.error('SumUp Integration Error:', e);
+    res.status(500).send({ error: e.message });
   }
 });
 

@@ -24,37 +24,61 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
   useEffect(() => {
     const initSumUp = async () => {
       try {
-        // 1. Create Checkout via Backend
-        const response = await fetch(`${API_URL}/create-sumup-checkout`, {
+        // Updated Endpoint: Matches the Next.js API route structure /api/sumup/create-checkout
+        const response = await fetch(`${API_URL}/sumup/create-checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
               amount: amount,
               currency: 'GBP',
-              metadata
+              // Pass metadata fields expected by the route
+              venueId: 'main-location', 
+              roomType: metadata?.roomId || 'soho',
+              date: metadata?.date,
+              time: metadata?.time,
+              durationHours: metadata?.duration,
+              guestCount: 8, // Default or passed from metadata if available
+              email: metadata?.customerEmail,
+              ...metadata
           }),
         });
 
+        const contentType = response.headers.get("content-type");
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error?.message || 'Failed to initialize payment');
+          if (contentType && contentType.indexOf("application/json") !== -1) {
+             const errData = await response.json();
+             throw new Error(errData.error || 'Failed to initialize payment');
+          } else {
+             // Handle HTML 404/500 responses gracefully
+             throw new Error(`Server Error: ${response.status}`);
+          }
         }
 
         const data = await response.json();
-        setCheckoutId(data.id);
+        setCheckoutId(data.checkoutId); // Note: Route returns checkoutId, not id
         
+        const idToMount = data.checkoutId;
+
         // 2. Mount SumUp Widget
-        // Check if SumUp SDK is loaded
-        if (window.SumUpCard && data.id) {
-          if (data.id.startsWith('mock-')) {
+        if (idToMount && idToMount.startsWith('mock-')) {
              // Handle Mock Mode visually
              setLoading(false);
-          } else {
-             mountWidget(data.id);
-          }
+        } else if (window.SumUpCard && idToMount) {
+             mountWidget(idToMount);
         } else {
-           setError("Payment provider failed to load. Please refresh.");
-           setLoading(false);
+           // If SDK not loaded but we have an ID, wait a bit or show error
+           if (idToMount) {
+             setTimeout(() => {
+               if (window.SumUpCard) mountWidget(idToMount);
+               else {
+                 setError("Payment provider failed to load. Please refresh.");
+                 setLoading(false);
+               }
+             }, 1000);
+           } else {
+             setError("Failed to generate checkout ID.");
+             setLoading(false);
+           }
         }
 
       } catch (err: any) {
@@ -66,10 +90,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
 
     initSumUp();
     
-    // Cleanup
-    return () => {
-      // Logic to unmount or cleanup if SumUp SDK supports it would go here
-    };
   }, [amount]);
 
   const mountWidget = (id: string) => {
@@ -80,7 +100,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
         onResponse: (type: string, body: any) => {
           console.log('SumUp Response:', type, body);
           if (type === 'success') {
-             onSuccess(body.transaction_id || id); // body usually contains transaction_id
+             onSuccess(body.transaction_id || id); 
           } else if (type === 'error') {
              setError('Payment failed or cancelled.');
           }
@@ -120,10 +140,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       
       {/* Mock Mode Fallback UI */}
       {!loading && checkoutId?.startsWith('mock-') && (
-        <div className="bg-neutral-900 border border-yellow-500/50 p-6 rounded-xl text-center">
-          <p className="text-[#FFD700] font-bold mb-2">Demo Mode (No API Key)</p>
-          <p className="text-neutral-400 text-sm mb-4">SumUp API key not found on server. Proceeding with mock payment.</p>
-          <Button fullWidth onClick={handleMockPayment}>Complete Mock Payment</Button>
+        <div className="bg-neutral-900 border border-yellow-500/50 p-6 rounded-xl text-center animate-in fade-in">
+          <p className="text-[#FFD700] font-bold mb-2">Dev Mode Active</p>
+          <p className="text-neutral-400 text-sm mb-4">SumUp keys not detected. Simulating payment flow.</p>
+          <Button fullWidth onClick={handleMockPayment}>Simulate Successful Payment</Button>
         </div>
       )}
 

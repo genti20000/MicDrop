@@ -26,7 +26,7 @@ body {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 5;
+  z-index: 49; /* Increased to 49 to be visible above main content (z-10) but below nav (z-50) */
   pointer-events: none;
   filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.4));
 }
@@ -71,7 +71,7 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 4;
+  z-index: 45; /* Increased to be visible over content */
   overflow: hidden;
 }
 
@@ -111,7 +111,7 @@ body {
   width: 100%;
   height: 250px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 45; /* Increased to be visible over content */
   mask-image: linear-gradient(to top, black, transparent);
   -webkit-mask-image: linear-gradient(to top, black, transparent);
 }
@@ -120,7 +120,7 @@ body {
   position: absolute;
   bottom: -40px;
   font-size: 24px;
-  color: rgba(255, 215, 0, 0.15); /* Very faint gold */
+  color: rgba(255, 215, 0, 0.3); /* Increased opacity slightly for visibility */
   animation: floatUp var(--duration) linear infinite;
   animation-delay: var(--delay);
   left: var(--x);
@@ -133,10 +133,10 @@ body {
     opacity: 0; 
   }
   20% { 
-    opacity: 0.2; /* Max opacity is low */
+    opacity: 0.4; 
   }
   80% { 
-    opacity: 0.1; 
+    opacity: 0.2; 
   }
   100% { 
     transform: translateY(-200px) rotate(45deg) scale(1.1); 
