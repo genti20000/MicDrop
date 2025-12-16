@@ -50,8 +50,8 @@ export default function BookingWizard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          venueId: 'main-location', // Hardcoded single location
-          roomType: 'soho', // Updated to Soho
+          venueId: 'main-location',
+          roomType: 'soho',
           date, 
           time, 
           durationHours: duration, 
@@ -60,17 +60,24 @@ export default function BookingWizard() {
         })
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Booking failed');
+      // Handle HTML responses (404/500) that aren't JSON
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") === -1) {
+         throw new Error(`Server Error (${res.status}). Please check API configuration.`);
       }
 
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Booking failed');
+      }
+
       setBookingRef(data.bookingRef);
       setCheckoutId(data.checkoutId);
       setTotalPrice(data.amount); 
       setStep('payment');
     } catch (e: any) {
+      console.error(e);
       setError(e.message);
     } finally {
       setIsLoading(false);
@@ -292,6 +299,7 @@ export default function BookingWizard() {
       {checkoutId.startsWith('mock-') && (
          <div className="mt-4 p-4 bg-blue-900/20 border border-blue-900/50 rounded-xl text-center">
             <p className="text-blue-400 text-sm mb-2">Dev Mode Active</p>
+            <p className="text-neutral-500 text-xs mb-3">SumUp Keys missing or Invalid</p>
             <button 
                 onClick={() => router.push(`/confirmation?ref=${bookingRef}`)}
                 className="text-xs text-white underline"
