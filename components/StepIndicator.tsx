@@ -2,7 +2,7 @@
 import React from 'react';
 
 export const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = [1, 2, 3, 4];
+  const steps = [1, 2, 3];
   
   return (
     <div className="flex items-center justify-center space-x-2 mb-8">
@@ -18,7 +18,7 @@ export const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }
           >
             {step}
           </div>
-          {step < 4 && (
+          {step < 3 && (
             <div 
               className={`h-1 w-8 rounded-full transition-all duration-300 ${currentStep > step ? 'bg-neutral-700' : 'bg-neutral-900'}`}
             />

@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { CheckCircle, Calendar, User, AlertCircle, ChevronDown } from 'lucide-react';
+import { CheckCircle, Calendar, User, AlertCircle, ChevronDown, MapPin } from 'lucide-react';
 
 import { ROOMS, DURATIONS, TIMES } from '../constants';
-import { RoomCard } from './RoomCard';
 import { StepIndicator } from './StepIndicator';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -16,7 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const INITIAL_STATE: BookingState = {
   step: 1,
-  selectedRoomId: null,
+  selectedRoomId: ROOMS[0].id, // Default to the only room (Soho)
   date: new Date().toISOString().split('T')[0],
   time: '20:00',
   duration: 2,
@@ -60,8 +59,9 @@ export const BookingWizard: React.FC = () => {
   const nextStep = () => setState(prev => ({ ...prev, step: prev.step + 1 }));
   const prevStep = () => setState(prev => ({ ...prev, step: prev.step - 1 }));
 
+  // Check availability when on Date step (Step 1 now)
   useEffect(() => {
-    if (state.selectedRoomId && state.step === 2) {
+    if (state.selectedRoomId && state.step === 1) {
       setCheckingAvailability(true);
       fetchAvailability(state.selectedRoomId, state.date)
         .then(setBusySlots)
@@ -113,14 +113,14 @@ export const BookingWizard: React.FC = () => {
     }
   };
 
-  if (state.step === 5 && confirmedId) {
+  if (state.step === 4 && confirmedId) {
     return (
       <div className="text-center py-12 px-6">
         <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-12 h-12 text-green-500" />
         </div>
         <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
-        <p className="text-zinc-400 mb-8">Get ready to sing your heart out.</p>
+        <p className="text-zinc-400 mb-8">Get ready to sing your heart out at Soho.</p>
         <div className="bg-zinc-900 p-6 rounded-xl max-w-sm mx-auto mb-8 border border-zinc-800 text-left">
            <div className="space-y-3 text-sm">
              <div className="flex justify-between"><span className="text-zinc-500">Booking ID</span> <span className="font-mono text-white">{confirmedId}</span></div>
@@ -135,10 +135,11 @@ export const BookingWizard: React.FC = () => {
   }
 
   // Generate Guest Options (8 - Max Capacity)
-  const maxCapacity = selectedRoom?.capacity || 100;
+  const maxCapacity = selectedRoom?.capacity || 50;
   const minGuests = 8;
+  const validMax = Math.max(minGuests, maxCapacity);
   const guestOptions = Array.from(
-    { length: maxCapacity - minGuests + 1 }, 
+    { length: validMax - minGuests + 1 }, 
     (_, i) => i + minGuests
   );
 
@@ -147,34 +148,14 @@ export const BookingWizard: React.FC = () => {
       <StepIndicator currentStep={state.step} />
 
       {state.step === 1 && (
-        <div className="space-y-6">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white">Choose Your Stage</h2>
-            <p className="text-zinc-400 mt-2">Select a room that fits your crew.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {ROOMS.map(room => (
-              <RoomCard 
-                key={room.id} 
-                room={room} 
-                selected={state.selectedRoomId === room.id}
-                onSelect={(id) => setState(prev => ({ ...prev, selectedRoomId: id }))}
-              />
-            ))}
-          </div>
-          <div className="flex justify-end pt-6">
-            <Button onClick={nextStep} disabled={!state.selectedRoomId} className="w-full md:w-auto">
-              Next Step
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {state.step === 2 && (
         <div className="max-w-xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
-            <Calendar className="text-[#FFD700]" /> Set the Date
-          </h2>
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">Book Soho</h2>
+            <div className="inline-flex items-center gap-2 bg-zinc-900/80 px-4 py-1.5 rounded-full border border-zinc-800 text-sm text-zinc-400">
+               <MapPin size={14} className="text-[#FFD700]" />
+               <span>London's Premier Private Suite</span>
+            </div>
+          </div>
           
           <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 relative backdrop-blur-sm">
             {checkingAvailability && (
@@ -281,10 +262,9 @@ export const BookingWizard: React.FC = () => {
             )}
           </div>
 
-          <div className="flex gap-4 mt-8">
-            <Button variant="secondary" onClick={prevStep}>Back</Button>
+          <div className="flex justify-end mt-8">
             <Button 
-              className="flex-1" 
+              className="w-full md:w-auto" 
               onClick={nextStep} 
               disabled={!isSlotAvailable(state.time, state.duration)}
             >
@@ -294,7 +274,7 @@ export const BookingWizard: React.FC = () => {
         </div>
       )}
 
-      {state.step === 3 && (
+      {state.step === 2 && (
         <div className="max-w-xl mx-auto">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
             <User className="text-[#FFD700]" /> Your Details
@@ -342,7 +322,7 @@ export const BookingWizard: React.FC = () => {
         </div>
       )}
 
-      {state.step === 4 && pricing && (
+      {state.step === 3 && pricing && (
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
              <h2 className="text-2xl font-bold mb-2 text-white">Secure Checkout</h2>

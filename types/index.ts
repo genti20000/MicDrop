@@ -11,7 +11,7 @@ export const LOCATION_NAME = "London Karaoke Club";
 export const LOCATION_ADDRESS = "London"; 
 
 // Since we removed specific rooms, we use a generic type for the database
-export type RoomType = 'standard_suite';
+export type RoomType = 'soho';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refund_required' | 'refunded';

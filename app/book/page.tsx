@@ -51,7 +51,7 @@ export default function BookingWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           venueId: 'main-location', // Hardcoded single location
-          roomType: 'standard_suite',
+          roomType: 'soho', // Updated to Soho
           date, 
           time, 
           durationHours: duration, 
@@ -112,8 +112,8 @@ export default function BookingWizard() {
   const renderConfig = () => (
     <div className="space-y-8 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-1 text-center mb-8">
-        <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Book Your Room</h2>
-        <p className="text-neutral-500">Select your date and squad size.</p>
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Book Soho</h2>
+        <p className="text-neutral-500">London's Premier Private Suite.</p>
       </div>
 
       <div>
