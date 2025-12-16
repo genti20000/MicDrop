@@ -12,7 +12,7 @@ export function calculatePrice(guestCount: number, durationHours: number): numbe
   const effectiveDuration = Math.max(2, durationHours);
   const basePrice = guestCount * 19;
 
-  // Extension Fees
+  // Extension Fees (Flat rates regardless of guest count)
   // 3 hours total (+1 extra) = +£100
   // 4 hours total (+2 extra) = +£175
   // 5 hours total (+3 extra) = +£225

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => {
@@ -9,17 +10,17 @@ export const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }
         <React.Fragment key={step}>
           <div 
             className={`
-              w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
+              w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all duration-300
               ${currentStep >= step 
-                ? 'bg-gradient-to-br from-neon-purple to-neon-pink text-white shadow-lg shadow-purple-900/50' 
-                : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}
+                ? 'bg-[#FFD700] text-black shadow-lg shadow-yellow-900/50' 
+                : 'bg-neutral-900 text-neutral-600 border border-neutral-800'}
             `}
           >
             {step}
           </div>
           {step < 4 && (
             <div 
-              className={`h-1 w-8 rounded-full transition-all duration-300 ${currentStep > step ? 'bg-zinc-600' : 'bg-zinc-800'}`}
+              className={`h-1 w-8 rounded-full transition-all duration-300 ${currentStep > step ? 'bg-neutral-700' : 'bg-neutral-900'}`}
             />
           )}
         </React.Fragment>

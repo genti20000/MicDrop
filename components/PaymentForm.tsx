@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
 import { API_URL } from '../constants';
@@ -106,8 +107,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       
       {loading && (
         <div className="text-center py-8">
-           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neon-cyan mx-auto mb-2"></div>
-           <p className="text-zinc-500 text-sm">Initializing Secure Payment...</p>
+           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-2"></div>
+           <p className="text-neutral-500 text-sm">Initializing Secure Payment...</p>
         </div>
       )}
 
@@ -119,9 +120,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       
       {/* Mock Mode Fallback UI */}
       {!loading && checkoutId?.startsWith('mock-') && (
-        <div className="bg-zinc-900 border border-yellow-500/50 p-6 rounded-xl text-center">
-          <p className="text-yellow-500 font-bold mb-2">Demo Mode (No API Key)</p>
-          <p className="text-zinc-400 text-sm mb-4">SumUp API key not found on server. Proceeding with mock payment.</p>
+        <div className="bg-neutral-900 border border-yellow-500/50 p-6 rounded-xl text-center">
+          <p className="text-[#FFD700] font-bold mb-2">Demo Mode (No API Key)</p>
+          <p className="text-neutral-400 text-sm mb-4">SumUp API key not found on server. Proceeding with mock payment.</p>
           <Button fullWidth onClick={handleMockPayment}>Complete Mock Payment</Button>
         </div>
       )}
@@ -136,10 +137,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
         <Button type="button" variant="secondary" onClick={onBack}>
           Back
         </Button>
-        {/* If using real widget, the button is inside the iframe/widget usually, so we might only need back button here unless in mock mode */}
       </div>
       
-      <p className="text-center text-zinc-500 text-xs">
+      <p className="text-center text-neutral-500 text-xs">
         Payments processed securely by SumUp.
       </p>
     </div>

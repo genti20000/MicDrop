@@ -1,23 +1,28 @@
-import { Room, PricingBreakdown } from "../types";
+
+import { PricingBreakdown } from "../types";
 
 export const calculatePrice = (
-  room: Room,
-  duration: number,
-  dateString: string
+  guests: number,
+  duration: number
 ): PricingBreakdown => {
-  const basePrice = room.pricePerHour * duration;
+  // Base Rule: £19 per person for the first 2 hours
+  const basePrice = guests * 19;
   
-  const date = new Date(dateString);
-  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
-  const isWeekend = day === 5 || day === 6; // Friday or Saturday
+  // Extension Fees (Flat rates regardless of guest count)
+  // +1 hour (3 total) = +100
+  // +2 hours (4 total) = +175
+  // +3 hours (5 total) = +225
+  let extensionFee = 0;
   
-  const surcharge = isWeekend ? basePrice * 0.2 : 0;
+  if (duration === 3) extensionFee = 100;
+  else if (duration === 4) extensionFee = 175;
+  else if (duration >= 5) extensionFee = 225;
   
   return {
     basePrice,
-    isWeekend,
-    surcharge,
-    total: basePrice + surcharge
+    isWeekend: false, // Legacy field, not used in new pricing model
+    surcharge: extensionFee, // Using surcharge field for extension fee
+    total: basePrice + extensionFee
   };
 };
 

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { CheckCircle, Calendar, User, AlertCircle } from 'lucide-react';
+import { CheckCircle, Calendar, User, AlertCircle, ChevronDown } from 'lucide-react';
 
 import { ROOMS, DURATIONS, TIMES } from '../constants';
 import { RoomCard } from './RoomCard';
@@ -19,7 +20,7 @@ const INITIAL_STATE: BookingState = {
   date: new Date().toISOString().split('T')[0],
   time: '20:00',
   duration: 2,
-  guests: 4,
+  guests: 8, // Minimum 8 guests default
   customer: {
     name: '',
     email: '',
@@ -51,8 +52,9 @@ export const BookingWizard: React.FC = () => {
   }, [user]);
 
   const selectedRoom = ROOMS.find(r => r.id === state.selectedRoomId);
+  // Calculate price based on guests and duration
   const pricing = selectedRoom 
-    ? calculatePrice(selectedRoom, state.duration, state.date) 
+    ? calculatePrice(state.guests, state.duration) 
     : null;
 
   const nextStep = () => setState(prev => ({ ...prev, step: prev.step + 1 }));
@@ -132,14 +134,22 @@ export const BookingWizard: React.FC = () => {
     );
   }
 
+  // Generate Guest Options (8 - Max Capacity)
+  const maxCapacity = selectedRoom?.capacity || 100;
+  const minGuests = 8;
+  const guestOptions = Array.from(
+    { length: maxCapacity - minGuests + 1 }, 
+    (_, i) => i + minGuests
+  );
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
       <StepIndicator currentStep={state.step} />
 
       {state.step === 1 && (
         <div className="space-y-6">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-purple to-neon-cyan">Choose Your Stage</h2>
+            <h2 className="text-3xl font-bold text-white">Choose Your Stage</h2>
             <p className="text-zinc-400 mt-2">Select a room that fits your crew.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,14 +172,14 @@ export const BookingWizard: React.FC = () => {
 
       {state.step === 2 && (
         <div className="max-w-xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Calendar className="text-neon-pink" /> Set the Date
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
+            <Calendar className="text-[#FFD700]" /> Set the Date
           </h2>
           
-          <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 relative">
+          <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 relative backdrop-blur-sm">
             {checkingAvailability && (
               <div className="absolute inset-0 bg-zinc-900/80 z-10 flex items-center justify-center rounded-2xl">
-                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neon-cyan"></div>
+                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700]"></div>
               </div>
             )}
 
@@ -183,38 +193,44 @@ export const BookingWizard: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="block text-sm font-medium text-zinc-400 mb-1.5">Start Time</label>
-                 <select 
-                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-neon-purple disabled:opacity-50"
-                   value={state.time}
-                   onChange={(e) => setState(prev => ({ ...prev, time: e.target.value }))}
-                 >
-                   {TIMES.map(t => {
-                     const isAvailable = isSlotAvailable(t, state.duration);
-                     return (
-                       <option key={t} value={t} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
-                         {t} {!isAvailable && '(Booked)'}
-                       </option>
-                     );
-                   })}
-                 </select>
+                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Start Time</label>
+                 <div className="relative">
+                   <select 
+                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] disabled:opacity-50 appearance-none font-medium"
+                     value={state.time}
+                     onChange={(e) => setState(prev => ({ ...prev, time: e.target.value }))}
+                   >
+                     {TIMES.map(t => {
+                       const isAvailable = isSlotAvailable(t, state.duration);
+                       return (
+                         <option key={t} value={t} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
+                           {t} {!isAvailable && '(Booked)'}
+                         </option>
+                       );
+                     })}
+                   </select>
+                   <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
+                 </div>
                </div>
                <div>
-                 <label className="block text-sm font-medium text-zinc-400 mb-1.5">Duration</label>
-                 <select 
-                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-neon-purple"
-                   value={state.duration}
-                   onChange={(e) => setState(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                 >
-                   {DURATIONS.map(d => {
-                     const isAvailable = isSlotAvailable(state.time, d);
-                     return (
-                      <option key={d} value={d} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
-                        {d} Hours {!isAvailable && '(Unavailable)'}
-                      </option>
-                     );
-                   })}
-                 </select>
+                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Duration</label>
+                 <div className="relative">
+                   <select 
+                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] appearance-none font-medium"
+                     value={state.duration}
+                     onChange={(e) => setState(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                   >
+                     {DURATIONS.map(d => {
+                       const isAvailable = isSlotAvailable(state.time, d);
+                       return (
+                        <option key={d} value={d} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
+                          {d} Hours {!isAvailable && '(Unavailable)'}
+                        </option>
+                       );
+                     })}
+                   </select>
+                   <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
+                 </div>
                </div>
             </div>
             
@@ -225,24 +241,35 @@ export const BookingWizard: React.FC = () => {
                </div>
             )}
 
-            <Input 
-              label="Number of Guests" 
-              type="number"
-              min={1}
-              max={selectedRoom?.capacity || 20}
-              value={state.guests}
-              onChange={(e) => setState(prev => ({ ...prev, guests: Number(e.target.value) }))}
-            />
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                Number of Guests (Min {minGuests} - Max {maxCapacity})
+              </label>
+              <div className="relative">
+                <select 
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] focus:ring-1 focus:ring-[#FFD700] transition-all font-medium appearance-none"
+                  value={state.guests}
+                  onChange={(e) => setState(prev => ({ ...prev, guests: Number(e.target.value) }))}
+                >
+                  {guestOptions.map(num => (
+                    <option key={num} value={num}>
+                      {num} {num === 1 ? 'Person' : 'People'}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
+              </div>
+            </div>
 
             {pricing && (
               <div className="mt-6 p-4 bg-black rounded-lg border border-zinc-800">
                 <div className="flex justify-between text-sm text-zinc-400 mb-1">
-                  <span>Base Price</span>
+                  <span>Base Price ({state.guests} guests @ £19pp)</span>
                   <span>{formatCurrency(pricing.basePrice)}</span>
                 </div>
-                {pricing.isWeekend && (
-                  <div className="flex justify-between text-sm text-neon-pink mb-1">
-                    <span>Weekend Surcharge (+20%)</span>
+                {pricing.surcharge > 0 && (
+                  <div className="flex justify-between text-sm text-[#FFD700] mb-1">
+                    <span>Extension (+{state.duration - 2} hrs)</span>
                     <span>+{formatCurrency(pricing.surcharge)}</span>
                   </div>
                 )}
@@ -269,11 +296,11 @@ export const BookingWizard: React.FC = () => {
 
       {state.step === 3 && (
         <div className="max-w-xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <User className="text-neon-cyan" /> Your Details
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
+            <User className="text-[#FFD700]" /> Your Details
           </h2>
           
-          <div className="space-y-4 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800">
+          <div className="space-y-4 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 backdrop-blur-sm">
             <Input 
               label="Full Name" 
               placeholder="Ziggy Stardust"
@@ -318,13 +345,13 @@ export const BookingWizard: React.FC = () => {
       {state.step === 4 && pricing && (
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
-             <h2 className="text-2xl font-bold mb-2">Secure Checkout</h2>
+             <h2 className="text-2xl font-bold mb-2 text-white">Secure Checkout</h2>
              <p className="text-zinc-400">Complete your booking for <span className="text-white font-bold">{selectedRoom?.name}</span></p>
           </div>
 
           {isSaving ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-purple mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-4"></div>
               <p className="text-zinc-400">Finalizing your booking...</p>
             </div>
           ) : (

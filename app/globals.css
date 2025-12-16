@@ -12,9 +12,116 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: #050505;
+  overflow-x: hidden;
 }
 
 ::selection {
   background-color: #FFD700;
   color: #000;
+}
+
+/* Disco Ball Animation */
+.disco-ball-container {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+}
+
+.disco-string {
+  width: 2px;
+  height: 100px;
+  background: linear-gradient(to bottom, #333, #666);
+  margin: 0 auto;
+}
+
+.disco-ball {
+  width: 60px;
+  height: 60px;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 20%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 8px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 8px),
+    linear-gradient(to bottom, #ccc, #666);
+  border-radius: 50%;
+  margin: -5px auto 0;
+  position: relative;
+  animation: spinBall 10s linear infinite, swingBall 4s ease-in-out infinite alternate;
+}
+
+@keyframes spinBall {
+  0% { background-position: 0 0; }
+  100% { background-position: 60px 0; }
+}
+
+@keyframes swingBall {
+  0% { transform: rotate(-5deg) translateX(-2px); }
+  100% { transform: rotate(5deg) translateX(2px); }
+}
+
+/* Mirror Sparkles Animation */
+.mirror-sparkles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4; /* Behind disco ball */
+  overflow: hidden;
+  perspective: 1000px;
+}
+
+.sparkle {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 15px 3px rgba(255, 215, 0, 0.5);
+  animation: sparkleMove var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: var(--size);
+}
+
+@keyframes sparkleMove {
+  0% { transform: scale(0) translate(0, 0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) translate(10px, 10px) rotate(180deg); opacity: 0.8; }
+  100% { transform: scale(0) translate(20px, 20px) rotate(360deg); opacity: 0; }
+}
+
+/* Musical Notes Animation */
+.musical-notes-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 200px;
+  pointer-events: none;
+  z-index: 1;
+  mask-image: linear-gradient(to top, black, transparent);
+  -webkit-mask-image: linear-gradient(to top, black, transparent);
+}
+
+.note {
+  position: absolute;
+  bottom: -30px;
+  font-size: 24px;
+  color: rgba(255, 215, 0, 0.15); /* Faint gold */
+  animation: floatUp var(--duration) linear infinite;
+  animation-delay: var(--delay);
+  left: var(--x);
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
+  20% { opacity: 0.4; }
+  80% { opacity: 0.4; }
+  100% { transform: translateY(-200px) rotate(45deg) scale(1.2); opacity: 0; }
 }

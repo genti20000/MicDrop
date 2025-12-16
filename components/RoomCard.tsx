@@ -1,7 +1,7 @@
+
 import React from 'react';
 import { Room } from '../types';
 import { Users, Music, Star } from 'lucide-react';
-import { formatCurrency } from '../services/pricing';
 
 interface RoomCardProps {
   room: Room;
@@ -14,40 +14,37 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, selected, onSelect }) 
     <div 
       onClick={() => onSelect(room.id)}
       className={`
-        relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 border-2
+        relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 border
         ${selected 
-          ? 'border-neon-purple bg-zinc-900/80 scale-[1.02] shadow-xl shadow-purple-900/20' 
-          : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-600 hover:bg-zinc-900/60'}
+          ? 'border-[#FFD700] bg-neutral-900 shadow-[0_0_30px_rgba(255,215,0,0.1)]' 
+          : 'border-neutral-800 bg-neutral-950 hover:border-neutral-600 hover:bg-neutral-900'}
       `}
     >
-      {/* Gradient accent header */}
-      <div className={`h-2 w-full bg-gradient-to-r ${room.gradient}`} />
-      
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="text-xl font-bold text-white">{room.name}</h3>
-          <span className="bg-zinc-800 text-zinc-300 text-xs font-semibold px-2 py-1 rounded">
-            {formatCurrency(room.pricePerHour)}/hr
+      <div className="p-6">
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-xl font-black uppercase tracking-tight text-white">{room.name}</h3>
+          <span className="bg-[#FFD700] text-black text-xs font-bold px-2 py-1 rounded">
+            £19pp (2hrs)
           </span>
         </div>
 
-        <p className="text-zinc-400 text-sm mb-4">{room.description}</p>
+        <p className="text-neutral-400 text-sm mb-6 leading-relaxed">{room.description}</p>
 
-        <div className="flex items-center space-x-4 text-sm text-zinc-300 mb-4">
+        <div className="flex items-center space-x-6 text-sm text-neutral-300 mb-6">
           <div className="flex items-center">
-            <Users size={16} className="mr-1.5 text-neon-cyan" />
-            {room.capacity}
+            <Users size={16} className="mr-2 text-[#FFD700]" />
+            {room.capacity} Guests
           </div>
           <div className="flex items-center">
-            <Music size={16} className="mr-1.5 text-neon-pink" />
+            <Music size={16} className="mr-2 text-[#FFD700]" />
             Pro Audio
           </div>
         </div>
 
-        <div className="space-y-1">
-          {room.features.slice(0, 2).map((feat, i) => (
-            <div key={i} className="flex items-center text-xs text-zinc-500">
-              <Star size={12} className="mr-1.5 text-yellow-500" />
+        <div className="space-y-2 border-t border-neutral-800 pt-4">
+          {room.features.slice(0, 3).map((feat, i) => (
+            <div key={i} className="flex items-center text-xs text-neutral-500 uppercase tracking-wide font-medium">
+              <Star size={10} className="mr-2 text-neutral-600" />
               {feat}
             </div>
           ))}
@@ -55,10 +52,9 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, selected, onSelect }) 
       </div>
       
       {/* Selection Circle */}
-      <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors
-        ${selected ? 'border-neon-purple bg-neon-purple text-white' : 'border-zinc-700 bg-transparent'}
+      <div className={`absolute top-4 right-4 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors
+        ${selected ? 'border-[#FFD700] bg-[#FFD700]' : 'border-neutral-700 bg-transparent'}
       `}>
-        {selected && <div className="w-2 h-2 bg-white rounded-full" />}
       </div>
     </div>
   );

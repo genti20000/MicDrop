@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Mic, User, LogOut } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import { BookingWizard } from './components/BookingWizard';
 import { MyBookings } from './components/MyBookings';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -24,15 +25,22 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-neon-pink selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-[#FFD700] selection:text-black">
       {/* Navbar */}
       <nav className="border-b border-zinc-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setView('book')}>
-            <div className="bg-gradient-to-r from-neon-pink to-neon-purple p-2 rounded-lg">
-              <Mic size={20} className="text-white" />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight">MicDrop</span>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setView('book')}>
+            <img 
+              src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=375,fit=crop,q=95/m7V3XokxQ0Hbg2KE/new-YNq2gqz36OInJMrE.png" 
+              alt="LKC Logo" 
+              className="w-10 h-10 object-contain hover:scale-105 transition-transform" 
+            />
+            <span className="text-xl font-black tracking-tighter uppercase text-white hover:text-[#FFD700] transition-colors hidden sm:block">
+              London Karaoke Club
+            </span>
+            <span className="text-xl font-black tracking-tighter uppercase text-white hover:text-[#FFD700] transition-colors sm:hidden">
+              LKC
+            </span>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -53,7 +61,7 @@ const MainApp: React.FC = () => {
 
             {user ? (
                <div className="flex items-center gap-3">
-                 <span className="text-sm font-medium text-neon-cyan hidden sm:inline">{user.name}</span>
+                 <span className="text-sm font-medium text-[#FFD700] hidden sm:inline">{user.name}</span>
                  <button onClick={logout} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors" title="Logout">
                    <LogOut size={18} />
                  </button>
@@ -92,7 +100,7 @@ const MainApp: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-zinc-900 py-8 text-center text-zinc-600 text-sm">
-        <p>&copy; {new Date().getFullYear()} MicDrop Karaoke. Soho, London.</p>
+        <p>&copy; {new Date().getFullYear()} London Karaoke Club. London.</p>
       </footer>
     </div>
   );

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { calculatePrice } from '@/lib/utils';
-import { Loader2, Calendar, Clock, User, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Loader2, Calendar, Clock, User, ArrowLeft, ArrowRight, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 12}:00`); // 12:00 to 23:00
 
@@ -20,7 +20,7 @@ export default function BookingWizard() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('20:00');
   const [duration, setDuration] = useState(2); // Default min 2 hours
-  const [guests, setGuests] = useState(4);
+  const [guests, setGuests] = useState(8); // Default min 8 guests
   const [details, setDetails] = useState({ name: '', email: '', phone: '', specialRequests: '' });
 
   // Payment State
@@ -162,25 +162,33 @@ export default function BookingWizard() {
       </div>
 
       <div>
-          <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Number of Guests</label>
+          <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Number of Guests (8 - 100)</label>
           <div className="relative group">
              <User className="absolute left-4 top-3.5 text-neutral-500 group-focus-within:text-brand-yellow transition-colors" size={20} />
-            <input 
-              type="number" min={1} max={30} value={guests}
+             <select 
+              value={guests}
               onChange={(e) => setGuests(Number(e.target.value))}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all font-medium"
-            />
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-medium transition-all"
+            >
+              {Array.from({ length: 93 }, (_, i) => i + 8).map(num => (
+                <option key={num} value={num}>{num} People</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-4 text-neutral-500 pointer-events-none" size={16} />
           </div>
       </div>
 
       <div className="bg-neutral-900/50 p-6 rounded-xl border border-neutral-800 space-y-3">
         <div className="flex justify-between text-sm text-neutral-400">
-          <span>Base Rate (2hrs)</span>
-          <span>£19.00 pp</span>
+          <span>Base Rate (2hrs @ £19pp)</span>
+          <span>£{(guests * 19).toFixed(2)}</span>
         </div>
         {duration > 2 && (
              <div className="flex justify-between text-sm text-brand-yellow font-medium">
-                <span>Extra Time Surcharge ({duration - 2}hr)</span>
+                <span className="flex flex-col">
+                  <span>Extension (+{duration - 2}hr{duration - 2 > 1 ? 's' : ''})</span>
+                  <span className="text-[10px] uppercase tracking-wide opacity-70 font-normal text-neutral-500">Flat rate regardless of group size</span>
+                </span>
                 <span>
                     {duration === 3 && '+£100.00'}
                     {duration === 4 && '+£175.00'}
