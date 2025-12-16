@@ -6,14 +6,12 @@ export type Venue = {
   is_active: boolean;
 };
 
-export type RoomType = 'small' | 'medium' | 'large' | 'vip';
+// Simplified to a single config since logic is now dynamic based on guests/duration
+export const LOCATION_NAME = "London Karaoke Club";
+export const LOCATION_ADDRESS = "London"; 
 
-export const ROOM_CONFIG: Record<RoomType, { label: string; capacity: string; price: number }> = {
-  small: { label: 'Small Room', capacity: '1-4 Guests', price: 25 },
-  medium: { label: 'Medium Room', capacity: '5-8 Guests', price: 40 },
-  large: { label: 'Large Room', capacity: '9-15 Guests', price: 60 },
-  vip: { label: 'VIP Suite', capacity: '10-20 Guests', price: 100 },
-};
+// Since we removed specific rooms, we use a generic type for the database
+export type RoomType = 'standard_suite';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refund_required' | 'refunded';

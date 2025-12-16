@@ -2,34 +2,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Script from 'next/script';
 import { useRouter } from 'next/navigation';
-import { ROOM_CONFIG, RoomType } from '@/types/index';
-import { calculatePrice, cn } from '@/lib/utils';
-import { Loader2, Check, MapPin, Music, Calendar, Clock, User } from 'lucide-react';
-
-const VENUES = [
-  { id: 'soho_berwick', name: 'Soho (Berwick St)', address: '19 Berwick Street' },
-  { id: 'soho_greek', name: 'Soho (Greek St)', address: '18 Greek Street' },
-  { id: 'holborn_fulwood', name: 'Holborn', address: '14 Fulwood Place' },
-];
+import { calculatePrice } from '@/lib/utils';
+import { Loader2, Calendar, Clock, User, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 
 const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 12}:00`); // 12:00 to 23:00
 
-type Step = 'venue' | 'room' | 'datetime' | 'details' | 'payment';
+type Step = 'config' | 'details' | 'payment';
 
 export default function BookingWizard() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('venue');
+  const [step, setStep] = useState<Step>('config');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Form State
-  const [venueId, setVenueId] = useState('');
-  const [roomType, setRoomType] = useState<RoomType | ''>('');
   const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [duration, setDuration] = useState(2);
+  const [time, setTime] = useState('20:00');
+  const [duration, setDuration] = useState(2); // Default min 2 hours
   const [guests, setGuests] = useState(4);
   const [details, setDetails] = useState({ name: '', email: '', phone: '', specialRequests: '' });
 
@@ -38,15 +28,20 @@ export default function BookingWizard() {
   const [checkoutId, setCheckoutId] = useState('');
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // Computed Price
+  // Update price in real-time
   useEffect(() => {
-    if (roomType && date) {
-      setTotalPrice(calculatePrice(roomType as RoomType, duration, date));
+    if (guests && duration) {
+      setTotalPrice(calculatePrice(guests, duration));
     }
-  }, [roomType, duration, date]);
+  }, [guests, duration]);
 
   // Create Checkout Handler
   const handleCreateCheckout = async () => {
+    if (!details.name || !details.email || !details.phone) {
+      setError('Please fill in all contact details.');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     
@@ -55,7 +50,12 @@ export default function BookingWizard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          venueId, roomType, date, time, durationHours: duration, guestCount: guests,
+          venueId: 'main-location', // Hardcoded single location
+          roomType: 'standard_suite',
+          date, 
+          time, 
+          durationHours: duration, 
+          guestCount: guests,
           ...details
         })
       });
@@ -68,7 +68,7 @@ export default function BookingWizard() {
       const data = await res.json();
       setBookingRef(data.bookingRef);
       setCheckoutId(data.checkoutId);
-      setTotalPrice(data.amount); // Ensure we use server price
+      setTotalPrice(data.amount); 
       setStep('payment');
     } catch (e: any) {
       setError(e.message);
@@ -78,204 +78,240 @@ export default function BookingWizard() {
   };
 
   // Mount SumUp Widget
-  const mountSumUp = () => {
-    if (typeof window !== 'undefined' && window.SumUpCard && checkoutId) {
-      try {
-        window.SumUpCard.mount({
-          id: 'sumup-card',
-          checkoutId: checkoutId,
-          onResponse: async (type: string, body: any) => {
-            if (type === 'success') {
-              // Verify on server
-              try {
-                const verify = await fetch('/api/bookings/confirm', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ bookingRef, checkoutId })
-                });
-                if (verify.ok) {
-                  router.push(`/confirmation?ref=${bookingRef}`);
-                } else {
-                  setError('Payment successful but confirmation failed. Contact support.');
+  useEffect(() => {
+    if (step === 'payment' && checkoutId) {
+      const mountSumUp = () => {
+        // Slight delay to ensure DOM element exists
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && window.SumUpCard) {
+            try {
+              window.SumUpCard.mount({
+                id: 'sumup-card',
+                checkoutId: checkoutId,
+                onResponse: async (type: string, body: any) => {
+                  if (type === 'success') {
+                    // Optimistic redirect, but ideally verifying via API
+                    router.push(`/confirmation?ref=${bookingRef}`);
+                  } else if (type === 'error') {
+                     setError('Payment failed or cancelled. Please try again.');
+                  }
                 }
-              } catch (e) {
-                setError('Network error verifying payment.');
-              }
-            } else if (type === 'error') {
-               setError('Payment failed. Please try again.');
+              });
+            } catch (e) {
+              console.error('SumUp Mount Error', e);
+              setError('Failed to load payment widget. Please refresh.');
             }
           }
-        });
-      } catch (e) {
-        console.error('SumUp Mount Error', e);
-      }
+        }, 500);
+      };
+      
+      mountSumUp();
     }
-  };
+  }, [step, checkoutId, bookingRef, router]);
 
-  useEffect(() => {
-    if (step === 'payment') mountSumUp();
-  }, [step, checkoutId]);
-
-  // Components per step
-  const renderVenue = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {VENUES.map(v => (
-        <button
-          key={v.id}
-          onClick={() => { setVenueId(v.id); setStep('room'); }}
-          className="p-6 bg-slate-900 border border-slate-800 rounded-xl hover:border-cyan-500 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition text-left group"
-        >
-          <MapPin className="mb-4 text-cyan-500 group-hover:scale-110 transition" />
-          <h3 className="text-xl font-bold text-white">{v.name}</h3>
-          <p className="text-slate-400 text-sm">{v.address}</p>
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderRoom = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {(Object.keys(ROOM_CONFIG) as RoomType[]).map(rt => (
-        <button
-          key={rt}
-          onClick={() => { setRoomType(rt); setStep('datetime'); }}
-          className="p-6 bg-slate-900 border border-slate-800 rounded-xl hover:border-fuchsia-500 hover:shadow-[0_0_15px_rgba(236,72,153,0.3)] transition text-left group"
-        >
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-xl font-bold text-white capitalize">{ROOM_CONFIG[rt].label}</h3>
-            <span className="bg-slate-800 px-2 py-1 rounded text-xs text-fuchsia-400">£{ROOM_CONFIG[rt].price}/hr</span>
-          </div>
-          <p className="text-slate-400 text-sm mb-4">{ROOM_CONFIG[rt].capacity}</p>
-          <div className="h-1 w-full bg-gradient-to-r from-fuchsia-500/50 to-transparent rounded" />
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderDateTime = () => (
-    <div className="space-y-6 max-w-md mx-auto">
-      <div>
-        <label className="block text-slate-400 mb-2">Date</label>
-        <input 
-          type="date" 
-          min={new Date().toISOString().split('T')[0]}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-        />
+  const renderConfig = () => (
+    <div className="space-y-8 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-1 text-center mb-8">
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Book Your Room</h2>
+        <p className="text-neutral-500">Select your date and squad size.</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-slate-400 mb-2">Time</label>
-          <select 
-            onChange={(e) => setTime(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-          >
-            <option value="">Select...</option>
-            {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-slate-400 mb-2">Duration (Hrs)</label>
-          <select 
-            onChange={(e) => setDuration(Number(e.target.value))}
-            value={duration}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-          >
-            {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
-      </div>
+
       <div>
-          <label className="block text-slate-400 mb-2">Guests</label>
+        <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Date</label>
+        <div className="relative group">
+          <Calendar className="absolute left-4 top-3.5 text-neutral-500 group-focus-within:text-brand-yellow transition-colors" size={20} />
           <input 
-            type="number" min={1} max={20} value={guests}
-            onChange={(e) => setGuests(Number(e.target.value))}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
+            type="date" 
+            min={new Date().toISOString().split('T')[0]}
+            onChange={(e) => setDate(e.target.value)}
+            value={date}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all placeholder-neutral-600 font-medium"
           />
+        </div>
       </div>
-      <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-        <span className="text-slate-400">Total Estimate</span>
-        <span className="text-xl font-bold text-cyan-400">£{totalPrice}</span>
+      
+      <div className="grid grid-cols-2 gap-6">
+        <div>
+          <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Start Time</label>
+           <div className="relative group">
+             <Clock className="absolute left-4 top-3.5 text-neutral-500 group-focus-within:text-brand-yellow transition-colors" size={20} />
+            <select 
+              onChange={(e) => setTime(e.target.value)}
+              value={time}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-medium"
+            >
+              {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Duration</label>
+          <div className="relative">
+            <select 
+              onChange={(e) => setDuration(Number(e.target.value))}
+              value={duration}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-medium"
+            >
+              {[2,3,4,5].map(n => <option key={n} value={n}>{n} Hours</option>)}
+            </select>
+            <div className="absolute right-4 top-4.5 pointer-events-none text-neutral-600">
+               <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L0 0H10L5 6Z"/></svg>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <div>
+          <label className="block text-neutral-500 mb-2 text-xs font-bold uppercase tracking-wider">Number of Guests</label>
+          <div className="relative group">
+             <User className="absolute left-4 top-3.5 text-neutral-500 group-focus-within:text-brand-yellow transition-colors" size={20} />
+            <input 
+              type="number" min={1} max={30} value={guests}
+              onChange={(e) => setGuests(Number(e.target.value))}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all font-medium"
+            />
+          </div>
+      </div>
+
+      <div className="bg-neutral-900/50 p-6 rounded-xl border border-neutral-800 space-y-3">
+        <div className="flex justify-between text-sm text-neutral-400">
+          <span>Base Rate (2hrs)</span>
+          <span>£19.00 pp</span>
+        </div>
+        {duration > 2 && (
+             <div className="flex justify-between text-sm text-brand-yellow font-medium">
+                <span>Extra Time Surcharge ({duration - 2}hr)</span>
+                <span>
+                    {duration === 3 && '+£100.00'}
+                    {duration === 4 && '+£175.00'}
+                    {duration >= 5 && '+£225.00'}
+                </span>
+             </div>
+        )}
+        <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
+          <span className="font-bold text-white uppercase tracking-wider text-sm">Estimated Total</span>
+          <span className="text-3xl font-black text-brand-yellow tracking-tight">£{totalPrice}</span>
+        </div>
+      </div>
+
       <button 
         disabled={!date || !time}
         onClick={() => setStep('details')}
-        className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg disabled:opacity-50"
+        className="w-full bg-brand-yellow hover:bg-yellow-400 text-black font-black uppercase tracking-wider py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-[0.98] shadow-lg shadow-yellow-900/20 flex items-center justify-center gap-2"
       >
-        Next
+        Continue <ArrowRight size={20} strokeWidth={3} />
       </button>
     </div>
   );
 
   const renderDetails = () => (
-    <div className="space-y-4 max-w-md mx-auto">
-      <input 
-        placeholder="Full Name" 
-        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-fuchsia-500 outline-none"
-        onChange={e => setDetails({...details, name: e.target.value})}
-      />
-      <input 
-        placeholder="Email" type="email"
-        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-fuchsia-500 outline-none"
-        onChange={e => setDetails({...details, email: e.target.value})}
-      />
-      <input 
-        placeholder="Phone" 
-        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-fuchsia-500 outline-none"
-        onChange={e => setDetails({...details, phone: e.target.value})}
-      />
-      <textarea 
-        placeholder="Special Requests?" 
-        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-white focus:border-fuchsia-500 outline-none"
-        onChange={e => setDetails({...details, specialRequests: e.target.value})}
-      />
-      <button 
-        onClick={handleCreateCheckout}
-        disabled={isLoading || !details.name || !details.email || !details.phone}
-        className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold py-3 rounded-lg flex justify-center items-center"
-      >
-        {isLoading ? <Loader2 className="animate-spin" /> : `Pay £${totalPrice}`}
-      </button>
+    <div className="space-y-6 max-w-lg mx-auto animate-in fade-in slide-in-from-right-8 duration-500">
+       <button onClick={() => setStep('config')} className="text-neutral-500 hover:text-white flex items-center gap-2 text-sm font-medium mb-4 transition-colors">
+          <ArrowLeft size={16} /> Change Date/Time
+       </button>
+       
+       <div className="text-center mb-8">
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Your Details</h2>
+        <p className="text-neutral-500">Where should we send the confirmation?</p>
+       </div>
+
+       <div className="space-y-4">
+          <input 
+             placeholder="Full Name"
+             value={details.name}
+             onChange={e => setDetails({...details, name: e.target.value})}
+             className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all placeholder-neutral-600 font-medium"
+          />
+          <input 
+             type="email"
+             placeholder="Email Address"
+             value={details.email}
+             onChange={e => setDetails({...details, email: e.target.value})}
+             className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all placeholder-neutral-600 font-medium"
+          />
+          <input 
+             type="tel"
+             placeholder="Phone Number"
+             value={details.phone}
+             onChange={e => setDetails({...details, phone: e.target.value})}
+             className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all placeholder-neutral-600 font-medium"
+          />
+          <textarea
+             placeholder="Special Requests (Optional)"
+             value={details.specialRequests}
+             onChange={e => setDetails({...details, specialRequests: e.target.value})}
+             className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none transition-all placeholder-neutral-600 font-medium min-h-[100px] resize-none"
+          />
+       </div>
+
+       <div className="flex flex-col gap-4">
+          <button 
+            onClick={handleCreateCheckout}
+            disabled={isLoading}
+            className="w-full bg-brand-yellow hover:bg-yellow-400 text-black font-black uppercase tracking-wider py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-[0.98] shadow-lg shadow-yellow-900/20 flex items-center justify-center gap-2"
+          >
+            {isLoading ? <Loader2 className="animate-spin" /> : 'Proceed to Payment'}
+          </button>
+       </div>
     </div>
   );
 
   const renderPayment = () => (
-    <div className="max-w-md mx-auto text-center">
-      <h3 className="text-xl font-bold mb-4">Complete Payment</h3>
-      <p className="text-slate-400 mb-6">Secure checkout via SumUp</p>
-      
-      <div id="sumup-card" className="min-h-[200px] bg-white rounded-lg p-4"></div>
-      
-      {/* Fallback script load */}
-      <Script src="https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js" strategy="lazyOnload" onLoad={() => mountSumUp()} />
+    <div className="max-w-lg mx-auto animate-in fade-in slide-in-from-right-8 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-white mb-2">Secure Checkout</h2>
+        <div className="inline-flex items-center justify-center gap-2 bg-neutral-900 px-4 py-2 rounded-full border border-neutral-800">
+            <span className="text-neutral-400 text-sm">Total to pay:</span>
+            <span className="text-brand-yellow font-black text-lg">£{totalPrice}</span>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6 bg-red-950/30 border border-red-900/50 p-4 rounded-xl text-red-200 text-sm text-center">
+            {error}
+        </div>
+      )}
+
+      {/* SumUp Container */}
+      <div id="sumup-card" className="bg-white rounded-xl min-h-[150px] mb-6 shadow-2xl"></div>
+
+      <p className="text-center text-neutral-600 text-xs flex items-center justify-center gap-2">
+        <ShieldCheck size={14} />
+        Payments processed securely via SumUp
+      </p>
+
+      {/* Mock Mode / Dev visual aid if needed, though hidden in prod */}
+      {checkoutId.startsWith('mock-') && (
+         <div className="mt-4 p-4 bg-blue-900/20 border border-blue-900/50 rounded-xl text-center">
+            <p className="text-blue-400 text-sm mb-2">Dev Mode Active</p>
+            <button 
+                onClick={() => router.push(`/confirmation?ref=${bookingRef}`)}
+                className="text-xs text-white underline"
+            >
+                Simulate Success
+            </button>
+         </div>
+      )}
     </div>
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-4 py-8">
-      {/* Steps Header */}
-      <div className="flex justify-between mb-8 text-sm font-medium text-slate-500">
-        <span className={cn(step === 'venue' && "text-cyan-400")}>1. Venue</span>
-        <span className={cn(step === 'room' && "text-cyan-400")}>2. Room</span>
-        <span className={cn(step === 'datetime' && "text-cyan-400")}>3. Date</span>
-        <span className={cn(step === 'details' && "text-cyan-400")}>4. Details</span>
-        <span className={cn(step === 'payment' && "text-fuchsia-400")}>5. Pay</span>
+    <div className="min-h-screen bg-neutral-950 px-4 py-12 flex flex-col justify-start">
+      {/* Step Indicator */}
+      <div className="flex justify-center mb-12 gap-2">
+        <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 'config' ? 'w-12 bg-brand-yellow' : 'w-4 bg-neutral-800'}`} />
+        <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 'details' ? 'w-12 bg-brand-yellow' : 'w-4 bg-neutral-800'}`} />
+        <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 'payment' ? 'w-12 bg-brand-yellow' : 'w-4 bg-neutral-800'}`} />
       </div>
 
-      <div className="bg-slate-950/50 p-6 md:p-8 rounded-2xl border border-slate-800 shadow-2xl">
-        <h2 className="text-3xl font-bold text-white mb-6 text-center">
-          {step === 'venue' && 'Select Venue'}
-          {step === 'room' && 'Select Room'}
-          {step === 'datetime' && 'Choose Slot'}
-          {step === 'details' && 'Your Info'}
-          {step === 'payment' && 'Payment'}
-        </h2>
-        
-        {error && <div className="mb-4 p-3 bg-red-900/20 text-red-400 rounded-lg text-center text-sm">{error}</div>}
+      <div className="w-full">
+        {error && step !== 'payment' && (
+             <div className="max-w-lg mx-auto mb-6 bg-red-950/30 border border-red-900/50 p-4 rounded-xl text-red-200 text-sm text-center animate-in fade-in">
+                {error}
+            </div>
+        )}
 
-        {step === 'venue' && renderVenue()}
-        {step === 'room' && renderRoom()}
-        {step === 'datetime' && renderDateTime()}
+        {step === 'config' && renderConfig()}
         {step === 'details' && renderDetails()}
         {step === 'payment' && renderPayment()}
       </div>

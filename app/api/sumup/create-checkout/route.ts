@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Price Calculation (Server-Side Authority)
-    const amount = calculatePrice(roomType as RoomType, durationHours, date);
+    const amount = calculatePrice(guestCount, durationHours);
     const bookingRef = generateBookingRef();
 
     // 4. Create SumUp Checkout
