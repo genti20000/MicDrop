@@ -4,6 +4,9 @@ import { supabaseAdmin, SUPABASE_URL } from '@/lib/supabase';
 import { createSumUpCheckout } from '@/lib/sumup';
 import { calculatePrice, generateBookingRef } from '@/lib/utils';
 
+// Ensure this route is never statically generated
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -11,7 +14,7 @@ export async function POST(req: Request) {
 
     // 1. Basic Validation
     if (!venueId || !roomType || !date || !time || !email) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing fields: date, time, or email' }, { status: 400 });
     }
 
     // Check if Supabase is configured (not using placeholder)
@@ -38,12 +41,12 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Price Calculation (Server-Side Authority)
-    const amount = calculatePrice(guestCount, durationHours);
+    // 3. Price Calculation
+    const amount = calculatePrice(guestCount || 8, durationHours || 2);
     const bookingRef = generateBookingRef();
 
     // 4. Create SumUp Checkout
-    // This uses the credentials defined in lib/sumup.ts
+    console.log(`Creating SumUp checkout for ${email} (${amount} GBP)`);
     const checkout = await createSumUpCheckout(amount, 'GBP', bookingRef, email);
 
     // 5. Insert Booking (Pending)
@@ -79,7 +82,6 @@ export async function POST(req: Request) {
             }
         } catch (dbErr) {
             console.error('DB Insert failed:', dbErr);
-            // We proceed to return the checkout so the user can still pay
         }
     }
 
@@ -93,4 +95,16 @@ export async function POST(req: Request) {
     console.error('Create Checkout Error:', e);
     return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
   }
+}
+
+// Handle CORS if needed
+export async function OPTIONS(req: Request) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }

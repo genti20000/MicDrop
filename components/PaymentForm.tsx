@@ -24,49 +24,49 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
   useEffect(() => {
     const initSumUp = async () => {
       try {
-        // Updated Endpoint: Matches the Next.js API route structure /api/sumup/create-checkout
-        const response = await fetch(`${API_URL}/sumup/create-checkout`, {
+        const endpoint = `${API_URL}/sumup/create-checkout`;
+        console.log('Initializing Payment via:', endpoint);
+
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
               amount: amount,
               currency: 'GBP',
-              // Pass metadata fields expected by the route
               venueId: 'main-location', 
               roomType: metadata?.roomId || 'soho',
               date: metadata?.date,
               time: metadata?.time,
               durationHours: metadata?.duration,
-              guestCount: 8, // Default or passed from metadata if available
+              guestCount: 8,
               email: metadata?.customerEmail,
               ...metadata
           }),
         });
 
         const contentType = response.headers.get("content-type");
-        if (!response.ok) {
-          if (contentType && contentType.indexOf("application/json") !== -1) {
-             const errData = await response.json();
-             throw new Error(errData.error || 'Failed to initialize payment');
-          } else {
-             // Handle HTML 404/500 responses gracefully
-             throw new Error(`Server Error: ${response.status}`);
-          }
+        
+        // 1. Check for JSON content type explicitly
+        if (!contentType || contentType.indexOf("application/json") === -1) {
+           throw new Error(`Server API Error (${response.status}) at ${endpoint}. Please verify API route configuration.`);
         }
 
         const data = await response.json();
-        setCheckoutId(data.checkoutId); // Note: Route returns checkoutId, not id
-        
+
+        // 2. Check logic success
+        if (!response.ok) {
+           throw new Error(data.error || 'Failed to initialize payment');
+        }
+
+        setCheckoutId(data.checkoutId); 
         const idToMount = data.checkoutId;
 
-        // 2. Mount SumUp Widget
+        // 3. Mount SumUp Widget
         if (idToMount && idToMount.startsWith('mock-')) {
-             // Handle Mock Mode visually
              setLoading(false);
         } else if (window.SumUpCard && idToMount) {
              mountWidget(idToMount);
         } else {
-           // If SDK not loaded but we have an ID, wait a bit or show error
            if (idToMount) {
              setTimeout(() => {
                if (window.SumUpCard) mountWidget(idToMount);
@@ -90,7 +90,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
 
     initSumUp();
     
-  }, [amount]);
+  }, [amount, metadata]);
 
   const mountWidget = (id: string) => {
     try {
@@ -114,7 +114,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
     }
   };
 
-  // Handler for Mock Mode
   const handleMockPayment = () => {
     setLoading(true);
     setTimeout(() => {

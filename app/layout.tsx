@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Link from 'next/link'
 import React from 'react';
+import { FooterAnimation } from '../components/FooterAnimation';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -62,7 +63,7 @@ export default function RootLayout({
         </div>
 
         <nav className="border-b border-neutral-800 bg-neutral-950/90 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between relative">
             <Link href="/" className="flex items-center gap-3 group">
               <img 
                 src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=375,fit=crop,q=95/m7V3XokxQ0Hbg2KE/new-YNq2gqz36OInJMrE.png" 
@@ -73,6 +74,25 @@ export default function RootLayout({
                 London Karaoke Club
               </span>
             </Link>
+
+            {/* Center Header Script Embed */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center justify-center pointer-events-none opacity-90">
+                <iframe
+                    srcDoc={`<html><head><style>
+                      body { margin: 0; background: transparent; display: flex; justify-content: center; align-items: center; overflow: hidden; font-family: sans-serif; }
+                      .gist .gist-file { border: none !important; margin: 0 !important; background: transparent !important; }
+                      .gist .gist-data { background: transparent !important; padding: 0 !important; }
+                      .gist .gist-meta { display: none !important; }
+                      .blob-code { color: #FFD700 !important; font-weight: bold; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+                      .blob-num { display: none !important; }
+                    </style></head><body><script src="https://gist.github.com/b0c0de/f3302710ede321bc08e11de0e2b7402e.js"></script></body></html>`}
+                    width="400"
+                    height="40"
+                    style={{ border: 'none', overflow: 'hidden' }}
+                    title="Header Widget"
+                />
+            </div>
+
             <div className="flex gap-6 text-sm font-bold uppercase tracking-wide">
               <Link href="/book" className="text-neutral-400 hover:text-brand-yellow transition-colors">Book Now</Link>
               <Link href="/my-bookings" className="text-neutral-400 hover:text-brand-yellow transition-colors">My Bookings</Link>
@@ -84,6 +104,7 @@ export default function RootLayout({
         </main>
         <footer className="py-12 text-center text-neutral-500 text-sm border-t border-neutral-900 bg-black relative z-10">
           <div className="flex flex-col gap-4">
+            <FooterAnimation />
             <h4 className="font-bold text-white uppercase tracking-widest">London Karaoke Club</h4>
             <p>© {new Date().getFullYear()} All rights reserved.</p>
             <Link href="/admin" className="text-neutral-700 hover:text-neutral-500 transition-colors text-xs">
