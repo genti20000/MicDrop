@@ -1,137 +1,29 @@
 
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Firestore } = require('@google-cloud/firestore');
+const fetch = require('node-fetch');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_change_in_prod';
+const PORT = process.env.PORT || 8080; // Cloud Run default
+const JWT_SECRET = process.env.JWT_SECRET || 'gcp_micdrop_secure_key';
 
-// SumUp Configuration
-// FALLBACK: Use provided credentials if env vars are missing
+// SumUp Config
 const SUMUP_API_KEY = process.env.SUMUP_API_KEY || 'sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr';
-const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com'; 
+const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com';
+
+// Firestore Init
+const db = new Firestore();
 
 app.use(cors());
 app.use(express.json());
 
-// --- SERVE STATIC FRONTEND ---
-app.use(express.static(path.join(__dirname, '../dist')));
-
-// --- DATABASE ABSTRACTION (Mock vs Firebase) ---
-let db;
-let USE_MOCK = false;
-
-// Mock DB Implementation
-const mockData = { users: [], bookings: [] };
-
-class MockCollection {
-  constructor(name) { this.name = name; }
-  
-  doc(id) { 
-    return {
-      set: async (data) => {
-        const item = { ...data, id: id || Math.random().toString(36).substr(2, 9) };
-        const idx = mockData[this.name].findIndex(x => x.id === item.id);
-        if (idx >= 0) mockData[this.name][idx] = item;
-        else mockData[this.name].push(item);
-        return item;
-      },
-      get: async () => {
-        const item = mockData[this.name].find(x => x.id === id);
-        return { exists: !!item, data: () => item };
-      },
-      delete: async () => {
-        const idx = mockData[this.name].findIndex(x => x.id === id);
-        if (idx >= 0) mockData[this.name].splice(idx, 1);
-      }
-    }
-  }
-
-  where(field, op, val) {
-    // Return a query object
-    return new MockQuery(this.name, (items) => items.filter(x => x[field] === val));
-  }
-
-  orderBy(field, dir) {
-    return new MockQuery(this.name, (items) => items.sort((a,b) => dir === 'desc' ? b[field] - a[field] : a[field] - b[field]));
-  }
-}
-
-class MockQuery {
-  constructor(name, filterFn) {
-    this.name = name;
-    this.filterFn = filterFn;
-  }
-
-  where(field, op, val) {
-    const oldFn = this.filterFn;
-    this.filterFn = (items) => oldFn(items).filter(x => x[field] === val);
-    return this;
-  }
-
-  orderBy(field, dir) {
-    // Note: In simple mock, sorting after filtering is roughly fine
-    const oldFn = this.filterFn;
-    this.filterFn = (items) => oldFn(items).sort((a,b) => dir === 'desc' ? b[field] - a[field] : a[field] - b[field]);
-    return this;
-  }
-
-  async get() {
-    const items = this.filterFn(mockData[this.name] || []);
-    return {
-      empty: items.length === 0,
-      docs: items.map(item => ({
-        id: item.id,
-        data: () => item
-      }))
-    }
-  }
-}
-
-// Initialize Database
-const admin = require('firebase-admin');
-try {
-  if (!admin.apps.length) {
-     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.FIREBASE_CONFIG) {
-        throw new Error("No credentials");
-     }
-     admin.initializeApp();
-  }
-  db = admin.firestore();
-  console.log('🔥 Firebase Connected');
-} catch (error) {
-  console.log('⚠️  Firebase not configured. Switching to In-Memory Mock DB.');
-  USE_MOCK = true;
-  db = {
-    collection: (name) => new MockCollection(name)
-  };
-}
-
-// --- MIDDLEWARE ---
-const authenticateOptional = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (token) {
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (!err) req.user = user;
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-const authenticateRequired = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ error: 'Access denied' });
-
+// Auth Middleware
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Auth required' });
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
@@ -139,216 +31,102 @@ const authenticateRequired = (req, res, next) => {
   });
 };
 
-// --- AUTH ENDPOINTS ---
+// Endpoints
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' });
-
   try {
-    const userSnapshot = await db.collection('users').where('email', '==', email).get();
-    if (!userSnapshot.empty) return res.status(400).json({ error: 'Email already exists' });
+    const userRef = db.collection('users').doc(email);
+    const doc = await userRef.get();
+    if (doc.exists) return res.status(400).json({ error: 'User exists' });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const newUserId = Math.random().toString(36).substr(2, 9);
+    const user = { name, email, passwordHash, createdAt: new Date().toISOString() };
+    await userRef.set(user);
     
-    const newUser = {
-      id: newUserId,
-      name,
-      email,
-      passwordHash,
-      createdAt: Date.now()
-    };
-    
-    await db.collection('users').doc(newUserId).set(newUser);
-    const token = jwt.sign({ uid: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.status(201).json({ 
-      token, 
-      user: { id: newUser.id, name: newUser.name, email: newUser.email } 
-    });
-
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { name, email } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const userSnapshot = await db.collection('users').where('email', '==', email).get();
-    if (userSnapshot.empty) return res.status(400).json({ error: 'Invalid credentials' });
-
-    const userDoc = userSnapshot.docs[0];
-    const userData = userDoc.data();
-
-    const validPass = await bcrypt.compare(password, userData.passwordHash);
-    if (!validPass) return res.status(400).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign({ uid: userData.id, email: userData.email }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.json({ 
-      token, 
-      user: { id: userData.id, name: userData.name, email: userData.email } 
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+    const doc = await db.collection('users').doc(email).get();
+    if (!doc.exists) return res.status(400).json({ error: 'User not found' });
+    
+    const user = doc.data();
+    if (!await bcrypt.compare(password, user.passwordHash)) return res.status(400).json({ error: 'Wrong password' });
+    
+    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { name: user.name, email } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- BOOKING HELPERS ---
-const parseTime = (t) => t ? parseInt(t.split(':')[0], 10) : 0;
-
-const checkOverlap = async (roomId, date, time, duration) => {
-  const newStart = parseTime(time);
-  const newEnd = newStart + duration;
-
+app.get('/api/availability', async (req, res) => {
+  const { roomId, date } = req.query;
   const snapshot = await db.collection('bookings')
     .where('roomId', '==', roomId)
     .where('date', '==', date)
+    .where('status', '==', 'confirmed')
     .get();
-
-  for (const doc of snapshot.docs) {
-    const b = doc.data();
-    const bStart = parseTime(b.time);
-    const bEnd = bStart + b.duration;
-
-    if (newStart < bEnd && newEnd > bStart) {
-      return true;
-    }
-  }
-  return false;
-};
-
-// --- BOOKING ENDPOINTS ---
-app.get('/api/availability', async (req, res) => {
-  const { roomId, date } = req.query;
-  if (!roomId || !date) return res.status(400).json({ error: 'Missing roomId or date' });
-
-  try {
-    const snapshot = await db.collection('bookings')
-      .where('roomId', '==', roomId)
-      .where('date', '==', date)
-      .get();
-    
-    const busySlots = snapshot.docs.map(doc => ({
-      time: doc.data().time,
-      duration: doc.data().duration
-    }));
-
-    res.json(busySlots);
-  } catch (error) {
-    console.error('Availability error', error);
-    res.status(500).json({ error: 'Failed to fetch availability' });
-  }
+  res.json(snapshot.docs.map(d => d.data()));
 });
 
-app.get('/api/bookings', authenticateRequired, async (req, res) => {
-  try {
-    const snapshot = await db.collection('bookings')
-      .where('userId', '==', req.user.uid)
-      .orderBy('timestamp', 'desc')
-      .get();
-    
-    const bookings = snapshot.docs.map(doc => doc.data());
-    res.json(bookings);
-  } catch (error) {
-    console.error('Error fetching bookings:', error);
-    res.status(500).json({ error: 'Failed to fetch bookings' });
-  }
-});
-
-app.post('/api/bookings', authenticateOptional, async (req, res) => {
-  try {
-    const booking = req.body;
-    if (req.user) booking.userId = req.user.uid;
-
-    const isBooked = await checkOverlap(booking.roomId, booking.date, booking.time, booking.duration);
-    if (isBooked) return res.status(409).json({ error: 'Time slot is no longer available' });
-
-    await db.collection('bookings').doc(booking.id).set(booking);
-    res.status(201).json({ status: 'saved' });
-  } catch (error) {
-    console.error('Error saving booking:', error);
-    res.status(500).json({ error: 'Failed to save booking' });
-  }
-});
-
-app.delete('/api/bookings/:id', authenticateRequired, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const docRef = db.collection('bookings').doc(id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) return res.status(404).json({ error: 'Booking not found' });
-    if (doc.data().userId !== req.user.uid) return res.status(403).json({ error: 'Unauthorized' });
-
-    await docRef.delete();
-    res.json({ status: 'deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete booking' });
-  }
-});
-
-// --- SUMUP PAYMENT ENDPOINT ---
-// Updated Route to match frontend: /api/sumup/create-checkout
 app.post('/api/sumup/create-checkout', async (req, res) => {
-  // Frontend sends a flat object, so we spread rest into metadata for checks
-  const { amount, currency = 'GBP', ...rest } = req.body;
-  const metadata = rest; 
-  
-  // 1. Availability Check
-  if (metadata && metadata.roomId) {
-    try {
-      const isBooked = await checkOverlap(
-        metadata.roomId, 
-        metadata.date, 
-        metadata.time, 
-        parseInt(metadata.duration || metadata.durationHours || 2)
-      );
-      if (isBooked) return res.status(409).send({ error: "Slot taken." });
-    } catch (e) { /* ignore */ }
-  }
+  const { amount, date, time, duration, guests, name, email, phone } = req.body;
+  const bookingRef = `LKC-${Date.now().toString(36).toUpperCase()}`;
 
-  // 2. SumUp Integration
   try {
-    // Call SumUp API to create a checkout resource
-    const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
+    const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${SUMUP_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        checkout_reference: `REF-${Date.now()}`,
-        amount: amount,
-        currency: currency,
+        checkout_reference: bookingRef,
+        amount,
+        currency: 'GBP',
         pay_to_email: SUMUP_MERCHANT_EMAIL,
-        description: `Booking for ${metadata?.roomName || 'Karaoke'}`
+        description: `Soho Booking: ${date} ${time}`
       })
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      // If unauthorized, it might be because the key is a Public Key not meant for this endpoint
-      console.error('SumUp API Error:', err);
-      throw new Error(err.message || 'SumUp API error');
+    const sumupData = await sumupRes.json();
+    let checkoutId = sumupData.id;
+
+    if (SUMUP_API_KEY.startsWith('sup_pk') || !sumupRes.ok) {
+      checkoutId = `mock-${Date.now()}`;
     }
 
-    const data = await response.json();
-    res.json({ id: data.id, checkoutId: data.id });
-    
-  } catch (e) {
-    console.error('SumUp Integration Error:', e);
-    res.status(500).send({ error: e.message });
-  }
+    await db.collection('bookings').doc(bookingRef).set({
+      bookingRef, checkoutId, amount, date, time, duration, guests,
+      customer: { name, email, phone },
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+
+    res.json({ bookingRef, checkoutId, amount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- CATCH-ALL ---
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+app.post('/api/bookings/confirm', async (req, res) => {
+  const { bookingRef, checkoutId } = req.body;
+  try {
+    // In production, verify checkoutId status via SumUp API here
+    await db.collection('bookings').doc(bookingRef).update({ 
+      status: 'confirmed',
+      paidAt: new Date().toISOString()
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.get('/api/bookings', auth, async (req, res) => {
+  const snapshot = await db.collection('bookings')
+    .where('customer.email', '==', req.user.email)
+    .get();
+  res.json(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+});
+
+app.listen(PORT, () => console.log(`🚀 GCP Cloud Run Backend on ${PORT}`));

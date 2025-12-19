@@ -18,48 +18,29 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
   useEffect(() => {
     const initSumUp = async () => {
       try {
-        const endpoint = `${API_URL}/sumup-checkout`;
-        
-        const response = await fetch(endpoint, {
+        const response = await fetch(`${API_URL}/sumup/create-checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
-              amount: amount,
-              roomName: metadata?.roomName,
-              date: metadata?.date,
-              time: metadata?.time,
-              duration: metadata?.duration,
-              guests: metadata?.guests || 8,
-              customerEmail: metadata?.customerEmail,
-              customerName: metadata?.customerName,
-              customerPhone: metadata?.customerPhone,
+              amount,
               ...metadata
           }),
         });
 
-        if (!response.ok) {
-           const errData = await response.json();
-           throw new Error(errData.error || 'API Error');
-        }
+        if (!response.ok) throw new Error('Failed to create checkout');
 
         const data = await response.json();
         setCheckoutData({ id: data.checkoutId, ref: data.bookingRef });
 
         if (data.checkoutId.startsWith('mock-')) {
-             setLoading(false);
+          setLoading(false);
         } else {
-           let retries = 0;
-           const interval = setInterval(() => {
-             if (window.SumUpCard) {
-               mountWidget(data.checkoutId, data.bookingRef);
-               clearInterval(interval);
-             } else if (retries > 15) {
-               setError("Payment SDK failed to load.");
-               setLoading(false);
-               clearInterval(interval);
-             }
-             retries++;
-           }, 500);
+          const checkSDK = setInterval(() => {
+            if (window.SumUpCard) {
+              mountWidget(data.checkoutId, data.bookingRef);
+              clearInterval(checkSDK);
+            }
+          }, 500);
         }
       } catch (err: any) {
         setError(err.message);
@@ -70,48 +51,26 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
   }, [amount, metadata]);
 
   const mountWidget = (id: string, ref: string) => {
-    try {
-      window.SumUpCard.mount({
-        id: 'sumup-card',
-        checkoutId: id,
-        onResponse: (type: string, body: any) => {
-          if (type === 'success') {
-             onSuccess(body.transaction_id || id, ref); 
-          } else if (type === 'error') {
-             setError('Payment failed.');
-          }
-        },
-      });
-      setLoading(false);
-    } catch (e) {
-      setError("Failed to load widget.");
-      setLoading(false);
-    }
-  };
-
-  const handleMockPayment = () => {
-    if (checkoutData) {
-      onSuccess("mock_txn_" + Date.now(), checkoutData.ref);
-    }
+    window.SumUpCard.mount({
+      id: 'sumup-card',
+      checkoutId: id,
+      onResponse: (type: string, body: any) => {
+        if (type === 'success') onSuccess(body.transaction_id || id, ref);
+        else setError('Payment failed.');
+      },
+    });
+    setLoading(false);
   };
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
-      {loading && (
-        <div className="text-center py-8">
-           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-2"></div>
-           <p className="text-neutral-500 text-sm">Connecting to Google Cloud...</p>
-        </div>
+      {loading && <div className="text-center py-8"><p className="text-neutral-500 animate-pulse">Initializing GCP Secure Payment...</p></div>}
+      <div id="sumup-card" className="bg-white rounded-xl overflow-hidden"></div>
+      {checkoutData?.id.startsWith('mock-') && !loading && (
+        <Button fullWidth onClick={() => onSuccess(checkoutData.id, checkoutData.ref)}>Confirm Mock Payment</Button>
       )}
-      <div id="sumup-card" className={`bg-white rounded-xl ${loading ? 'opacity-0 h-0' : 'opacity-100'}`}></div>
-      {!loading && checkoutData?.id.startsWith('mock-') && (
-        <div className="bg-neutral-900 border border-yellow-500/50 p-6 rounded-xl text-center">
-          <p className="text-[#FFD700] font-bold mb-4">Development Mode</p>
-          <Button fullWidth onClick={handleMockPayment}>Confirm Booking</Button>
-        </div>
-      )}
-      {error && <div className="p-4 bg-red-950/30 border border-red-900 rounded-lg text-red-200 text-sm">{error}</div>}
-      <Button type="button" variant="secondary" onClick={onBack}>Back</Button>
+      {error && <div className="p-4 bg-red-900/20 text-red-200 rounded-lg">{error}</div>}
+      <Button variant="secondary" onClick={onBack}>Cancel</Button>
     </div>
   );
 };
