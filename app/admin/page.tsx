@@ -1,133 +1,189 @@
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { Database } from '@/types/supabase';
-import Link from 'next/link';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/constants';
 import { cn } from '@/lib/utils';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { Loader2, TrendingUp, Users, Calendar, LogOut, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
-export default async function AdminDashboard() {
-  const cookieStore = await cookies();
+export default function AdminDashboard() {
+  const router = useRouter();
+  const { user, logout, loading: authLoading } = useAuth();
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const supabase = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Ignored
-          }
-        },
-      },
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user || user.role !== 'admin') {
+        router.push('/admin/login');
+      } else {
+        fetchAdminData();
+      }
     }
-  );
-  
-  // 1. Check Auth & Admin Role
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/admin/login'); 
+  }, [user, authLoading]);
 
-  const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', session.user.id)
-    .single();
+  const fetchAdminData = async () => {
+    try {
+      const token = localStorage.getItem('lkc_token');
+      const res = await fetch(`${API_URL}/admin/bookings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch admin data');
+      const data = await res.json();
+      setBookings(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (!adminUser) return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-red-500 bg-neutral-950">
-      <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-      <p className="text-neutral-400 mb-4">Your account does not have administrator privileges.</p>
-      <Link href="/" className="text-[#FFD700] hover:underline">Return Home</Link>
-    </div>
-  );
+  const handleLogout = () => {
+    logout();
+    router.push('/admin/login');
+  };
 
-  // 2. Fetch Data (Server Side)
-  const { data: bookings } = await supabase
-    .from('bookings')
-    .select('*, venues(name), payments(status)')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#FFD700]" size={40} />
+      </div>
+    );
+  }
 
-  // Stats
-  const totalRevenue = bookings?.reduce((acc: any, b: any) => b.status === 'confirmed' ? acc + b.total_gbp : acc, 0) || 0;
-  const pendingCount = bookings?.filter((b: any) => b.status === 'confirmed').length || 0;
+  const totalRevenue = bookings.reduce((acc, b) => b.status === 'confirmed' ? acc + parseFloat(b.amount) : acc, 0);
+  const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-neutral-950">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Dashboard</h1>
-        <div className="flex items-center gap-4">
-            <div className="text-sm text-neutral-400 bg-neutral-900 px-3 py-1 rounded-full border border-neutral-800 font-mono">
-                {session.user.email}
+    <div className="min-h-screen bg-neutral-950 text-white font-sans p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter text-[#FFD700]">Admin Dashboard</h1>
+            <p className="text-neutral-500">Managing MicDrop operations in London.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block text-right">
+              <p className="text-sm font-bold text-white uppercase tracking-wider">{user?.name}</p>
+              <p className="text-xs text-neutral-500">{user?.email}</p>
             </div>
-            <Link href="/" className="text-sm text-[#FFD700] hover:text-yellow-400 font-bold">Exit</Link>
-        </div>
-      </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2.5 bg-neutral-900 border border-neutral-800 rounded-lg hover:border-red-500/50 hover:text-red-400 transition-all"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition">
-          <h3 className="text-neutral-500 text-xs font-bold uppercase tracking-widest">Total Revenue</h3>
-          <p className="text-3xl font-black text-white mt-2">£{totalRevenue.toFixed(2)}</p>
-        </div>
-        <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition">
-          <h3 className="text-neutral-500 text-xs font-bold uppercase tracking-widest">Confirmed Bookings</h3>
-          <p className="text-3xl font-black text-[#FFD700] mt-2">{pendingCount}</p>
-        </div>
-        <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition">
-          <h3 className="text-neutral-500 text-xs font-bold uppercase tracking-widest">Total Records</h3>
-          <p className="text-3xl font-black text-white mt-2">{bookings?.length}</p>
-        </div>
-      </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+          <div className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
+                <TrendingUp size={24} />
+              </div>
+              <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Revenue</span>
+            </div>
+            <p className="text-3xl font-black">£{totalRevenue.toFixed(2)}</p>
+            <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Total processed</p>
+          </div>
 
-      {/* Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-neutral-400">
-            <thead className="bg-black text-neutral-200 uppercase font-bold text-xs tracking-wider border-b border-neutral-800">
-              <tr>
-                <th className="px-6 py-4">Ref</th>
-                <th className="px-6 py-4">Date/Time</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {bookings?.map((b: any) => (
-                <tr key={b.id} className="hover:bg-neutral-800/50 transition">
-                  <td className="px-6 py-4 font-mono text-[#FFD700] font-medium">{b.booking_ref}</td>
-                  <td className="px-6 py-4">
-                    <div className="text-white font-medium">{b.date}</div>
-                    <div className="text-xs text-neutral-500">{b.start_time} ({b.duration_hours}h)</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-white font-medium">{b.name}</div>
-                    <div className="text-xs text-neutral-500">{b.email}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-bold border uppercase tracking-wide",
-                      b.status === 'confirmed' ? "bg-green-900/30 text-green-400 border-green-900" : 
-                      b.status === 'cancelled' ? "bg-red-900/30 text-red-400 border-red-900" : 
-                      "bg-yellow-900/30 text-yellow-400 border-yellow-900"
-                    )}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-white font-mono">£{b.total_gbp}</td>
+          <div className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500">
+                <Calendar size={24} />
+              </div>
+              <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Bookings</span>
+            </div>
+            <p className="text-3xl font-black">{confirmedCount}</p>
+            <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Confirmed sessions</p>
+          </div>
+
+          <div className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl lg:col-span-1 sm:col-span-2">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                <Users size={24} />
+              </div>
+              <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Conversion</span>
+            </div>
+            <p className="text-3xl font-black">
+              {bookings.length > 0 ? ((confirmedCount / bookings.length) * 100).toFixed(1) : 0}%
+            </p>
+            <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Checkout success rate</p>
+          </div>
+        </div>
+
+        {/* Bookings Table */}
+        <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="p-6 border-b border-neutral-800 flex justify-between items-center">
+            <h2 className="text-lg font-bold uppercase tracking-wider">Recent Activity</h2>
+            <Link href="/" target="_blank" className="text-xs text-[#FFD700] hover:underline flex items-center gap-1">
+              View Site <ExternalLink size={12} />
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-black/50 text-neutral-500 uppercase text-[10px] font-black tracking-widest">
+                  <th className="px-6 py-4">Reference</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Date & Time</th>
+                  <th className="px-6 py-4">Session</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-neutral-800/50">
+                {bookings.map((booking) => (
+                  <tr key={booking.booking_ref} className="hover:bg-neutral-800/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-[#FFD700] font-bold">{booking.booking_ref}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-white font-medium">{booking.customer_name}</span>
+                        <span className="text-xs text-neutral-500">{booking.customer_email}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-white">{booking.date}</span>
+                        <span className="text-xs text-neutral-500">{booking.time}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-neutral-400">{booking.duration}h / {booking.guests} Guests</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                        booking.status === 'confirmed' 
+                          ? "bg-green-500/10 text-green-500 border-green-500/20" 
+                          : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                      )}>
+                        {booking.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="font-bold text-white">£{parseFloat(booking.amount).toFixed(2)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {bookings.length === 0 && (
+            <div className="p-12 text-center text-neutral-500">
+              No records found in database.
+            </div>
+          )}
         </div>
       </div>
     </div>

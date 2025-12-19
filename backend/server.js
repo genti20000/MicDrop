@@ -47,13 +47,14 @@ app.post('/api/auth/register', async (req, res) => {
     if (rows.length > 0) return res.status(400).json({ error: 'User exists' });
 
     const passwordHash = await bcrypt.hash(password, 10);
+    // Note: Added 'role' column with default 'user'
     await pool.execute(
-      'INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
-      [name, email, passwordHash, new Date().toISOString()]
+      'INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)',
+      [name, email, passwordHash, 'user', new Date().toISOString()]
     );
     
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { name, email } });
+    const token = jwt.sign({ email, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { name, email, role: 'user' } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -66,8 +67,21 @@ app.post('/api/auth/login', async (req, res) => {
     const user = rows[0];
     if (!await bcrypt.compare(password, user.password_hash)) return res.status(400).json({ error: 'Wrong password' });
     
-    const token = jwt.sign({ email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { name: user.name, email } });
+    const token = jwt.sign({ email, name: user.name, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { name: user.name, email, role: user.role || 'user' } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ADMIN ENDPOINTS ---
+app.get('/api/admin/bookings', auth, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM bookings ORDER BY created_at DESC'
+    );
+    res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

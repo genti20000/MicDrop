@@ -1,18 +1,33 @@
 
-import React, { useState } from 'react';
-import { User, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { BookingWizard } from './components/BookingWizard';
 import { MyBookings } from './components/MyBookings';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm, RegisterForm } from './components/Auth';
+import AdminLogin from './app/admin/login/page';
+import AdminDashboard from './app/admin/page';
 
 const MainApp: React.FC = () => {
   const { user, logout } = useAuth();
-  const [view, setView] = useState<'book' | 'list' | 'login'>('book');
+  const [view, setView] = useState<'book' | 'list' | 'login' | 'admin-login' | 'admin-dashboard'>('book');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
+  // Handle URL hash for "routing" in a SPA without a heavy router
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#admin') setView('admin-login');
+      else if (hash === '#bookings') setView('list');
+      else setView('book');
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
   const handleLoginSuccess = () => {
-    setView('list'); // Redirect to bookings after login
+    setView('list'); 
   };
 
   const handleMyBookingsClick = () => {
@@ -23,6 +38,11 @@ const MainApp: React.FC = () => {
       setAuthMode('login');
     }
   };
+
+  if (view === 'admin-login' || (view === 'admin-dashboard' && user?.role === 'admin')) {
+    if (user?.role === 'admin') return <AdminDashboard />;
+    return <AdminLogin />;
+  }
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-[#FFD700] selection:text-black">
@@ -61,6 +81,15 @@ const MainApp: React.FC = () => {
 
             {user ? (
                <div className="flex items-center gap-3">
+                 {user.role === 'admin' && (
+                    <button 
+                      onClick={() => setView('admin-dashboard')} 
+                      className="p-2 text-yellow-500 hover:bg-zinc-800 rounded-full transition-colors"
+                      title="Admin Dashboard"
+                    >
+                      <ShieldCheck size={18} />
+                    </button>
+                 )}
                  <span className="text-sm font-medium text-[#FFD700] hidden sm:inline">{user.name}</span>
                  <button onClick={logout} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors" title="Logout">
                    <LogOut size={18} />
@@ -100,7 +129,15 @@ const MainApp: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-zinc-900 py-8 text-center text-zinc-600 text-sm">
-        <p>&copy; {new Date().getFullYear()} London Karaoke Club. London.</p>
+        <div className="max-w-5xl mx-auto px-4 flex flex-col items-center gap-4">
+          <p>&copy; {new Date().getFullYear()} London Karaoke Club. London.</p>
+          <button 
+            onClick={() => setView('admin-login')} 
+            className="text-zinc-800 hover:text-zinc-400 transition-colors text-[10px] uppercase tracking-widest font-bold"
+          >
+            Staff Portal
+          </button>
+        </div>
       </footer>
     </div>
   );

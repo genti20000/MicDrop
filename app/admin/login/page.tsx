@@ -3,12 +3,13 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { Loader2, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2, ShieldCheck, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLogin() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,30 +21,20 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      // 1. Authenticate with Supabase
-      const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-      if (!user) throw new Error('Login failed');
-
-      // 2. Verify Admin Status (Client-side check before redirect)
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_users')
-        .select('user_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (adminError || !adminUser) {
-        await supabase.auth.signOut();
+      // Use the standard login from AuthContext
+      await login(email, password);
+      
+      // The login function updates local storage. We need to check if the role is admin.
+      const savedUser = JSON.parse(localStorage.getItem('lkc_user') || '{}');
+      
+      if (savedUser.role !== 'admin') {
+        localStorage.removeItem('lkc_token');
+        localStorage.removeItem('lkc_user');
         throw new Error('Access denied: You do not have administrator privileges.');
       }
 
-      // 3. Success
+      // Success
       router.push('/admin');
-      router.refresh();
       
     } catch (err: any) {
       console.error(err);
@@ -68,7 +59,7 @@ export default function AdminLogin() {
         </div>
 
         {error && (
-            <div className="mb-6 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-200 text-sm flex items-start">
+            <div className="mb-6 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-200 text-sm flex items-start animate-in fade-in slide-in-from-top-1">
                 <AlertCircle size={16} className="mr-2 mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
             </div>
@@ -112,15 +103,15 @@ export default function AdminLogin() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-[#FFD700] hover:bg-yellow-400 text-black font-black uppercase tracking-wider py-3 rounded-lg transition-all shadow-lg shadow-yellow-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+            className="w-full bg-[#FFD700] hover:bg-yellow-400 text-black font-black uppercase tracking-wider py-3 rounded-lg transition-all shadow-lg shadow-yellow-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center font-bold"
           >
             {loading ? <Loader2 className="animate-spin" /> : 'Authenticate'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-            <Link href="/" className="text-neutral-500 hover:text-white text-sm transition-colors">
-                ← Return to Public Site
+            <Link href="/" className="text-neutral-500 hover:text-white text-sm transition-colors inline-flex items-center gap-2">
+                <ArrowLeft size={14} /> Return to Public Site
             </Link>
         </div>
       </div>
