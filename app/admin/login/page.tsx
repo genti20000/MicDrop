@@ -2,13 +2,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ShieldCheck, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 
 export default function AdminLogin() {
-  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,10 +18,8 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      // Use the standard login from AuthContext
       await login(email, password);
       
-      // The login function updates local storage. We need to check if the role is admin.
       const savedUser = JSON.parse(localStorage.getItem('lkc_user') || '{}');
       
       if (savedUser.role !== 'admin') {
@@ -33,8 +28,8 @@ export default function AdminLogin() {
         throw new Error('Access denied: You do not have administrator privileges.');
       }
 
-      // Success
-      router.push('/admin');
+      // Using hash for SPA navigation
+      window.location.hash = 'admin';
       
     } catch (err: any) {
       console.error(err);
@@ -47,7 +42,6 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
       <div className="bg-black border border-neutral-800 w-full max-w-md p-8 rounded-2xl shadow-2xl relative overflow-hidden">
-        {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-1 bg-[#FFD700]"></div>
         
         <div className="flex flex-col items-center mb-8">
@@ -110,9 +104,9 @@ export default function AdminLogin() {
         </form>
 
         <div className="mt-6 text-center">
-            <Link href="/" className="text-neutral-500 hover:text-white text-sm transition-colors inline-flex items-center gap-2">
+            <button onClick={() => window.location.hash = ''} className="text-neutral-500 hover:text-white text-sm transition-colors inline-flex items-center gap-2">
                 <ArrowLeft size={14} /> Return to Public Site
-            </Link>
+            </button>
         </div>
       </div>
     </div>

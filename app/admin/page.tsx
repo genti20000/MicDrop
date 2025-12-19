@@ -2,15 +2,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_URL } from '@/constants';
 import { cn } from '@/lib/utils';
 import { Loader2, TrendingUp, Users, Calendar, LogOut, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const { user, logout, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +16,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authLoading) {
       if (!user || user.role !== 'admin') {
-        router.push('/admin/login');
+        window.location.hash = 'admin/login';
       } else {
         fetchAdminData();
       }
@@ -46,7 +43,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     logout();
-    router.push('/admin/login');
+    window.location.hash = 'admin/login';
   };
 
   if (authLoading || loading) {
@@ -124,9 +121,9 @@ export default function AdminDashboard() {
         <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-6 border-b border-neutral-800 flex justify-between items-center">
             <h2 className="text-lg font-bold uppercase tracking-wider">Recent Activity</h2>
-            <Link href="/" target="_blank" className="text-xs text-[#FFD700] hover:underline flex items-center gap-1">
+            <button onClick={() => window.location.hash = ''} className="text-xs text-[#FFD700] hover:underline flex items-center gap-1">
               View Site <ExternalLink size={12} />
-            </Link>
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">

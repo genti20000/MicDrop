@@ -2,16 +2,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { calculatePrice } from '@/lib/utils';
 import { Loader2, Calendar, Clock, User, ArrowLeft, ArrowRight, ShieldCheck, ChevronDown } from 'lucide-react';
+import { API_URL } from '@/constants';
 
 const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 12}:00`); // 12:00 to 23:00
 
 type Step = 'config' | 'details' | 'payment';
 
 export default function BookingWizard() {
-  const router = useRouter();
   const [step, setStep] = useState<Step>('config');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +45,7 @@ export default function BookingWizard() {
     setError('');
     
     try {
-      const res = await fetch('/api/sumup/create-checkout', {
+      const res = await fetch(`${API_URL}/sumup/create-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -59,12 +58,6 @@ export default function BookingWizard() {
           ...details
         })
       });
-
-      // Handle HTML responses (404/500) that aren't JSON
-      const contentType = res.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") === -1) {
-         throw new Error(`Server Error (${res.status}). Please check API configuration.`);
-      }
 
       const data = await res.json();
 
@@ -88,7 +81,6 @@ export default function BookingWizard() {
   useEffect(() => {
     if (step === 'payment' && checkoutId) {
       const mountSumUp = () => {
-        // Slight delay to ensure DOM element exists
         setTimeout(() => {
           if (typeof window !== 'undefined' && window.SumUpCard) {
             try {
@@ -97,8 +89,7 @@ export default function BookingWizard() {
                 checkoutId: checkoutId,
                 onResponse: async (type: string, body: any) => {
                   if (type === 'success') {
-                    // Optimistic redirect, but ideally verifying via API
-                    router.push(`/confirmation?ref=${bookingRef}`);
+                    window.location.hash = `confirmation?ref=${bookingRef}`;
                   } else if (type === 'error') {
                      setError('Payment failed or cancelled. Please try again.');
                   }
@@ -114,7 +105,7 @@ export default function BookingWizard() {
       
       mountSumUp();
     }
-  }, [step, checkoutId, bookingRef, router]);
+  }, [step, checkoutId, bookingRef]);
 
   const renderConfig = () => (
     <div className="space-y-8 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -301,7 +292,7 @@ export default function BookingWizard() {
             <p className="text-blue-400 text-sm mb-2">Dev Mode Active</p>
             <p className="text-neutral-500 text-xs mb-3">SumUp Keys missing or Invalid</p>
             <button 
-                onClick={() => router.push(`/confirmation?ref=${bookingRef}`)}
+                onClick={() => window.location.hash = `confirmation?ref=${bookingRef}`}
                 className="text-xs text-white underline"
             >
                 Simulate Success

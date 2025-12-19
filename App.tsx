@@ -7,32 +7,39 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm, RegisterForm } from './components/Auth';
 import AdminLogin from './app/admin/login/page';
 import AdminDashboard from './app/admin/page';
+import Confirmation from './app/confirmation/page';
 
 const MainApp: React.FC = () => {
   const { user, logout } = useAuth();
-  const [view, setView] = useState<'book' | 'list' | 'login' | 'admin-login' | 'admin-dashboard'>('book');
+  const [view, setView] = useState<'book' | 'list' | 'login' | 'admin-login' | 'admin-dashboard' | 'confirmation'>('book');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   // Handle URL hash for "routing" in a SPA without a heavy router
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash;
-      if (hash === '#admin') setView('admin-login');
+      if (hash === '#admin' || hash === '#admin/login') {
+        if (user?.role === 'admin' && hash === '#admin') setView('admin-dashboard');
+        else setView('admin-login');
+      } 
       else if (hash === '#bookings') setView('list');
+      else if (hash.startsWith('#confirmation')) setView('confirmation');
       else setView('book');
     };
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [user]);
 
   const handleLoginSuccess = () => {
     setView('list'); 
+    window.location.hash = 'bookings';
   };
 
   const handleMyBookingsClick = () => {
     if (user) {
       setView('list');
+      window.location.hash = 'bookings';
     } else {
       setView('login');
       setAuthMode('login');
@@ -40,7 +47,7 @@ const MainApp: React.FC = () => {
   };
 
   if (view === 'admin-login' || (view === 'admin-dashboard' && user?.role === 'admin')) {
-    if (user?.role === 'admin') return <AdminDashboard />;
+    if (user?.role === 'admin' && view === 'admin-dashboard') return <AdminDashboard />;
     return <AdminLogin />;
   }
 
@@ -49,7 +56,7 @@ const MainApp: React.FC = () => {
       {/* Navbar */}
       <nav className="border-b border-zinc-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setView('book')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setView('book'); window.location.hash = ''; }}>
             <img 
               src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=375,fit=crop,q=95/m7V3XokxQ0Hbg2KE/new-YNq2gqz36OInJMrE.png" 
               alt="LKC Logo" 
@@ -66,7 +73,7 @@ const MainApp: React.FC = () => {
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex space-x-1 bg-zinc-900 p-1 rounded-lg">
               <button
-                onClick={() => setView('book')}
+                onClick={() => { setView('book'); window.location.hash = ''; }}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'book' ? 'bg-zinc-700 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
               >
                 Book Room
@@ -83,7 +90,7 @@ const MainApp: React.FC = () => {
                <div className="flex items-center gap-3">
                  {user.role === 'admin' && (
                     <button 
-                      onClick={() => setView('admin-dashboard')} 
+                      onClick={() => { setView('admin-dashboard'); window.location.hash = 'admin'; }} 
                       className="p-2 text-yellow-500 hover:bg-zinc-800 rounded-full transition-colors"
                       title="Admin Dashboard"
                     >
@@ -125,6 +132,8 @@ const MainApp: React.FC = () => {
             )}
           </div>
         )}
+
+        {view === 'confirmation' && <Confirmation />}
       </main>
 
       {/* Footer */}
@@ -132,7 +141,7 @@ const MainApp: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 flex flex-col items-center gap-4">
           <p>&copy; {new Date().getFullYear()} London Karaoke Club. London.</p>
           <button 
-            onClick={() => setView('admin-login')} 
+            onClick={() => { setView('admin-login'); window.location.hash = 'admin/login'; }} 
             className="text-zinc-800 hover:text-zinc-400 transition-colors text-[10px] uppercase tracking-widest font-bold"
           >
             Staff Portal
