@@ -8,7 +8,10 @@ export const getBookings = async (): Promise<ConfirmedBooking[]> => {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
-  if (!response.ok) throw new Error('Failed to fetch bookings');
+  if (!response.ok) {
+    if (response.status === 401) return [];
+    throw new Error('Failed to fetch bookings');
+  }
   return response.json();
 };
 

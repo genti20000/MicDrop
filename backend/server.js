@@ -7,10 +7,14 @@ const { Firestore } = require('@google-cloud/firestore');
 const fetch = require('node-fetch');
 
 const app = express();
-const PORT = process.env.PORT || 8080; // Cloud Run default
+const PORT = process.env.PORT || 8080;
 const JWT_SECRET = process.env.JWT_SECRET || 'gcp_micdrop_secure_key';
 
-// SumUp Config
+/**
+ * NOTE: For server-side checkouts, you need the SumUp SECRET KEY (sup_sk_...)
+ * If you only have the Public Key (sup_pk_...), the server-to-server 
+ * checkout creation will fail. Ensure SUMUP_API_KEY is your secret key.
+ */
 const SUMUP_API_KEY = process.env.SUMUP_API_KEY || 'sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr';
 const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com';
 
@@ -31,7 +35,7 @@ const auth = (req, res, next) => {
   });
 };
 
-// Endpoints
+// --- AUTH ENDPOINTS ---
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
   try {
@@ -62,14 +66,17 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- BOOKING ENDPOINTS ---
 app.get('/api/availability', async (req, res) => {
   const { roomId, date } = req.query;
-  const snapshot = await db.collection('bookings')
-    .where('roomId', '==', roomId)
-    .where('date', '==', date)
-    .where('status', '==', 'confirmed')
-    .get();
-  res.json(snapshot.docs.map(d => d.data()));
+  try {
+    const snapshot = await db.collection('bookings')
+      .where('roomId', '==', roomId || 'soho')
+      .where('date', '==', date)
+      .where('status', '==', 'confirmed')
+      .get();
+    res.json(snapshot.docs.map(d => d.data()));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/sumup/create-checkout', async (req, res) => {
@@ -77,6 +84,7 @@ app.post('/api/sumup/create-checkout', async (req, res) => {
   const bookingRef = `LKC-${Date.now().toString(36).toUpperCase()}`;
 
   try {
+    // 1. Create Checkout in SumUp
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
       headers: {
@@ -92,41 +100,63 @@ app.post('/api/sumup/create-checkout', async (req, res) => {
       })
     });
 
+    let checkoutId;
     const sumupData = await sumupRes.json();
-    let checkoutId = sumupData.id;
 
+    // If using a public key on server, or API fails, fallback to MOCK mode for demo
     if (SUMUP_API_KEY.startsWith('sup_pk') || !sumupRes.ok) {
+      console.warn('SumUp API error or Public Key used on server. Falling back to MOCK.');
       checkoutId = `mock-${Date.now()}`;
+    } else {
+      checkoutId = sumupData.id;
     }
 
+    // 2. Persist Pending Booking to Firestore
     await db.collection('bookings').doc(bookingRef).set({
-      bookingRef, checkoutId, amount, date, time, duration, guests,
+      bookingRef, 
+      checkoutId, 
+      amount, 
+      date, 
+      time, 
+      duration, 
+      guests,
       customer: { name, email, phone },
       status: 'pending',
       createdAt: new Date().toISOString()
     });
 
     res.json({ bookingRef, checkoutId, amount });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error('Checkout error:', e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.post('/api/bookings/confirm', async (req, res) => {
   const { bookingRef, checkoutId } = req.body;
   try {
-    // In production, verify checkoutId status via SumUp API here
-    await db.collection('bookings').doc(bookingRef).update({ 
+    // In production, you would verify checkoutId status with SumUp here
+    const docRef = db.collection('bookings').doc(bookingRef);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) return res.status(404).json({ error: 'Booking not found' });
+
+    await docRef.update({ 
       status: 'confirmed',
       paidAt: new Date().toISOString()
     });
+    
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/bookings', auth, async (req, res) => {
-  const snapshot = await db.collection('bookings')
-    .where('customer.email', '==', req.user.email)
-    .get();
-  res.json(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  try {
+    const snapshot = await db.collection('bookings')
+      .where('customer.email', '==', req.user.email)
+      .get();
+    res.json(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.listen(PORT, () => console.log(`🚀 GCP Cloud Run Backend on ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 MicDrop GCP Cloud Run Backend on ${PORT}`));
