@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Test | London Karaoke Club</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: white; }
+        .gold-glow { text-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full">
+        <!-- Brand Header -->
+        <div class="text-center mb-10">
+            <img src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=375,fit=crop,q=95/m7V3XokxQ0Hbg2KE/new-YNq2gqz36OInJMrE.png" 
+                 alt="Logo" class="w-20 h-20 mx-auto mb-4 object-contain">
+            <h1 class="text-2xl font-black uppercase tracking-tighter text-[#FFD700] gold-glow">
+                Database Status
+            </h1>
+            <p class="text-neutral-500 text-sm mt-2">Hostinger Connection Utility</p>
+        </div>
+
+        <!-- Connection Panel -->
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+            <div id="status-indicator" class="absolute top-0 left-0 w-full h-1 bg-neutral-800 transition-colors duration-500"></div>
+            
+            <div id="content">
+                <div class="flex flex-col items-center justify-center py-6 text-center">
+                    <div id="icon-container" class="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mb-4 text-neutral-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                    </div>
+                    <p id="status-text" class="text-neutral-400 font-medium">Ready to test connection</p>
+                </div>
+
+                <button id="test-btn" class="w-full bg-[#FFD700] hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-yellow-900/20 active:scale-95 flex items-center justify-center gap-3">
+                    <span id="btn-text">Run Diagnostic</span>
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="mt-8 hidden animate-in fade-in slide-in-from-top-4">
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs font-bold uppercase tracking-widest text-neutral-500">
+                        <span>Metric</span>
+                        <span>Value</span>
+                    </div>
+                    <div id="results-data" class="space-y-2 border-t border-neutral-800 pt-3">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-neutral-600 text-[10px] mt-8 uppercase font-bold tracking-widest">
+            London Karaoke Club &bull; Admin Tools
+        </p>
+    </div>
+
+    <script>
+        const testBtn = document.getElementById('test-btn');
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.getElementById('status-indicator');
+        const iconContainer = document.getElementById('icon-container');
+        const results = document.getElementById('results');
+        const resultsData = document.getElementById('results-data');
+        const btnText = document.getElementById('btn-text');
+
+        testBtn.addEventListener('click', async () => {
+            // Loading State
+            btnText.innerText = 'Connecting...';
+            testBtn.disabled = true;
+            statusText.innerText = 'Attempting handshake...';
+            statusIndicator.className = 'absolute top-0 left-0 w-full h-1 bg-blue-500 animate-pulse';
+            results.classList.add('hidden');
+
+            try {
+                const response = await fetch('api/db_test.php');
+                const data = await response.json();
+
+                if (data.ok) {
+                    // Success
+                    statusText.innerText = 'Online & Connected';
+                    statusText.className = 'text-green-500 font-bold';
+                    statusIndicator.className = 'absolute top-0 left-0 w-full h-1 bg-green-500';
+                    iconContainer.className = 'w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4 text-green-500';
+                    
+                    resultsData.innerHTML = `
+                        <div class="flex justify-between text-sm"><span class="text-neutral-500">Server Time</span><span class="font-mono text-white">${data.details.server_time}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-neutral-500">Database</span><span class="font-mono text-white">${data.details.database}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-neutral-500">Host</span><span class="font-mono text-white">${data.details.host}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-neutral-500">PHP</span><span class="font-mono text-white">${data.details.php_version}</span></div>
+                    `;
+                    results.classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                // Failure
+                statusText.innerText = 'Connection Refused';
+                statusText.className = 'text-red-500 font-bold';
+                statusIndicator.className = 'absolute top-0 left-0 w-full h-1 bg-red-500';
+                iconContainer.className = 'w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500';
+                
+                resultsData.innerHTML = `<div class="p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-xs text-red-200 leading-relaxed font-mono">${error.message}</div>`;
+                results.classList.remove('hidden');
+            } finally {
+                btnText.innerText = 'Run Diagnostic';
+                testBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
