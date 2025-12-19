@@ -2,6 +2,7 @@
 {
   "framework": "nextjs",
   "rewrites": [
+    { "source": "/api/sumup/create-checkout", "destination": "/api/sumup-checkout" },
     { "source": "/webhook", "destination": "/api/webhook" }
   ]
 }

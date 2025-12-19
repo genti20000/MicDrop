@@ -4,6 +4,7 @@ import { Room } from "./types";
 // NOTE: In a real app, use an environment variable for the key
 export const STRIPE_PUBLISHABLE_KEY = "pk_test_placeholder"; 
 
+// Using /api as base for serverless functions
 export const API_URL = "/api";
 
 export const ROOMS: Room[] = [
