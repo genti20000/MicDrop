@@ -16,6 +16,7 @@ export const getBookings = async (): Promise<ConfirmedBooking[]> => {
 };
 
 export const deleteBooking = async (id: string): Promise<void> => {
+  // Not implemented in gateway yet, but following pattern
   const token = localStorage.getItem('lkc_token');
   const response = await fetch(`${API_URL}?action=delete_booking&id=${id}`, {
     method: 'DELETE',

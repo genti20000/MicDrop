@@ -1,7 +1,8 @@
+
 import { Room } from "./types";
 
 // For Hostinger, we use the relative /api path
-// The .htaccess routes /api/... to gateway.php
+// The .htaccess rules will handle routing this to gateway.php
 export const API_URL = "/api";
 
 // SumUp Public Key (for frontend initialization)
