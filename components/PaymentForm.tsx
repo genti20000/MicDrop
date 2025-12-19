@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
-import { API_URL, SUMUP_PUBLIC_KEY } from '../constants';
+import { API_URL } from '../constants';
 
 interface PaymentFormProps {
   amount: number; 
@@ -19,7 +19,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
     const initSumUp = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/sumup/create-checkout`, {
+        const response = await fetch(`${API_URL}?action=create_checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
@@ -64,7 +64,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
         id: 'sumup-card',
         checkoutId: id,
         onResponse: (type: string, body: any) => {
-          console.log('SumUp Response:', type, body);
           if (type === 'success') {
             onSuccess(body.transaction_id || id, ref);
           } else if (type === 'error') {
@@ -96,7 +95,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       {loading && (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-4"></div>
-          <p className="text-neutral-500 text-sm animate-pulse">Establishing Secure GCP Connection...</p>
+          <p className="text-neutral-500 text-sm animate-pulse">Initializing Secure Payment Gateway...</p>
         </div>
       )}
 
@@ -105,7 +104,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       {checkoutData?.id.startsWith('mock-') && !loading && (
         <div className="p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center space-y-4">
           <p className="text-yellow-500 text-sm font-medium">Sandbox Mode Active</p>
-          <p className="text-zinc-500 text-xs">SumUp Secret Key is missing from GCP Environment Variables. Proceeding with mock checkout.</p>
+          <p className="text-zinc-500 text-xs">SumUp Secret Key is missing from Environment Variables. Proceeding with mock checkout.</p>
           <Button fullWidth onClick={handleMockConfirm}>Confirm Mock Booking</Button>
         </div>
       )}
@@ -123,7 +122,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ amount, onSuccess, onB
       </div>
       
       <p className="text-center text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
-        Secured by SumUp & Google Cloud
+        Secured by SumUp & SSL Encryption
       </p>
     </div>
   );

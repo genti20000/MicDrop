@@ -1,8 +1,8 @@
 
 import { Room } from "./types";
 
-// The Google Cloud Run Service URL
-export const API_URL = "https://micdrop-641703602093.us-west1.run.app/api";
+// For Hostinger, we use the local PHP gateway
+export const API_URL = "/api/gateway.php";
 
 // SumUp Public Key (for frontend initialization)
 export const SUMUP_PUBLIC_KEY = "sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr";

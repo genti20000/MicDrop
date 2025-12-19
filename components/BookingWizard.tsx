@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CheckCircle, Loader2, ArrowRight, Calendar, Clock, User } from 'lucide-react';
+import { CheckCircle, Loader2 } from 'lucide-react';
 import { DURATIONS, TIMES, API_URL } from '../constants';
 import { StepIndicator } from './StepIndicator';
 import { Button } from './ui/Button';
@@ -29,7 +29,7 @@ export const BookingWizard: React.FC = () => {
   const handlePaymentSuccess = async (transactionId: string, bookingRef: string) => {
     setIsConfirming(true);
     try {
-      const response = await fetch(`${API_URL}/bookings/confirm`, {
+      const response = await fetch(`${API_URL}?action=confirm_booking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingRef, checkoutId: transactionId })
@@ -51,9 +51,9 @@ export const BookingWizard: React.FC = () => {
         <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500">
           <CheckCircle size={40} />
         </div>
-        <h2 className="text-4xl font-black uppercase mb-2">Confirmed!</h2>
+        <h2 className="text-4xl font-black uppercase mb-2 text-white">Confirmed!</h2>
         <p className="text-zinc-500 mb-8">Ref: <span className="text-[#FFD700] font-mono">{confirmedRef}</span></p>
-        <Button onClick={() => window.location.reload()}>Book Another</Button>
+        <Button onClick={() => window.location.hash = ''}>Return Home</Button>
       </div>
     );
   }
@@ -68,13 +68,13 @@ export const BookingWizard: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-zinc-500">Time</label>
-              <select className="w-full bg-black border border-zinc-800 rounded-lg p-3" value={state.time} onChange={e => setState(p => ({ ...p, time: e.target.value }))}>
+              <select className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white" value={state.time} onChange={e => setState(p => ({ ...p, time: e.target.value }))}>
                 {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-zinc-500">Duration</label>
-              <select className="w-full bg-black border border-zinc-800 rounded-lg p-3" value={state.duration} onChange={e => setState(p => ({ ...p, duration: Number(e.target.value) }))}>
+              <select className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white" value={state.duration} onChange={e => setState(p => ({ ...p, duration: Number(e.target.value) }))}>
                 {DURATIONS.map(d => <option key={d} value={d}>{d} Hours</option>)}
               </select>
             </div>
@@ -103,7 +103,7 @@ export const BookingWizard: React.FC = () => {
       {state.step === 3 && (
         <div className="bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800">
           {isConfirming ? (
-            <div className="text-center py-10"><Loader2 className="animate-spin mx-auto mb-4 text-[#FFD700]" /><p>Finalizing with Google Cloud...</p></div>
+            <div className="text-center py-10"><Loader2 className="animate-spin mx-auto mb-4 text-[#FFD700]" /><p className="text-white">Verifying payment with gateway...</p></div>
           ) : (
             <PaymentForm 
               amount={pricing.total} 

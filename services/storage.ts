@@ -4,7 +4,7 @@ import { API_URL } from '../constants';
 
 export const getBookings = async (): Promise<ConfirmedBooking[]> => {
   const token = localStorage.getItem('lkc_token');
-  const response = await fetch(`${API_URL}/bookings`, {
+  const response = await fetch(`${API_URL}?action=list_bookings`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
@@ -17,7 +17,7 @@ export const getBookings = async (): Promise<ConfirmedBooking[]> => {
 
 export const deleteBooking = async (id: string): Promise<void> => {
   const token = localStorage.getItem('lkc_token');
-  const response = await fetch(`${API_URL}/bookings/${id}`, {
+  const response = await fetch(`${API_URL}?action=delete_booking&id=${id}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -26,7 +26,7 @@ export const deleteBooking = async (id: string): Promise<void> => {
 };
 
 export const fetchAvailability = async (roomId: string, date: string) => {
-  const response = await fetch(`${API_URL}/availability?roomId=${roomId}&date=${date}`);
+  const response = await fetch(`${API_URL}?action=availability&roomId=${roomId}&date=${date}`);
   if (!response.ok) return [];
   return response.json();
 };
