@@ -4,13 +4,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './lib/supabase';
 
 export async function middleware(request: NextRequest) {
+  // Explicitly skip API routes to prevent any interference
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  // Create a Supabase client configured to use cookies
   const supabase = createServerClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -57,21 +61,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired
   await supabase.auth.getSession();
 
   return response;
 }
 
 export const config = {
+  // Only run middleware on pages that might need auth, skipping static files and APIs
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

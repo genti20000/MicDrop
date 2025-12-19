@@ -1,26 +1,27 @@
 
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, SUPABASE_URL } from '@/lib/supabase';
-import { createSumUpCheckout } from '@/lib/sumup';
-import { calculatePrice, generateBookingRef } from '@/lib/utils';
+// Switch to relative paths to ensure modules resolve correctly in all environments
+import { supabaseAdmin, SUPABASE_URL } from '../../../../lib/supabase';
+import { createSumUpCheckout } from '../../../../lib/sumup';
+import { calculatePrice, generateBookingRef } from '../../../../lib/utils';
 
-// Ensure this route is never statically generated
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  console.log('API Hit: /api/sumup/create-checkout');
   try {
     const body = await req.json();
     const { venueId, roomType, date, time, durationHours, guestCount, name, email, phone, specialRequests } = body;
 
     // 1. Basic Validation
     if (!venueId || !roomType || !date || !time || !email) {
+      console.warn('Missing fields in checkout request');
       return NextResponse.json({ error: 'Missing fields: date, time, or email' }, { status: 400 });
     }
 
-    // Check if Supabase is configured (not using placeholder)
     const isDbConfigured = !SUPABASE_URL.includes('placeholder');
 
-    // 2. Availability Check (Skip if DB not configured)
+    // 2. Availability Check
     if (isDbConfigured) {
       try {
         const { data: conflict } = await supabaseAdmin
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     console.log(`Creating SumUp checkout for ${email} (${amount} GBP)`);
     const checkout = await createSumUpCheckout(amount, 'GBP', bookingRef, email);
 
-    // 5. Insert Booking (Pending)
+    // 5. Insert Booking
     if (isDbConfigured) {
         try {
             const { data: booking, error: bookingError } = await supabaseAdmin
@@ -70,7 +71,6 @@ export async function POST(req: Request) {
             .single();
 
             if (!bookingError && booking) {
-                // 6. Insert Payment Record
                 await supabaseAdmin
                 .from('payments')
                 .insert({
@@ -92,12 +92,11 @@ export async function POST(req: Request) {
     });
 
   } catch (e: any) {
-    console.error('Create Checkout Error:', e);
+    console.error('Create Checkout Fatal Error:', e);
     return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
   }
 }
 
-// Handle CORS if needed
 export async function OPTIONS(req: Request) {
   return new NextResponse(null, {
     status: 200,
