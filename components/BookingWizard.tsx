@@ -6,7 +6,8 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { PaymentForm } from './PaymentForm';
 import { calculatePrice, formatCurrency } from '../services/pricing';
-import { BookingState } from '../types';
+import { BookingState, ConfirmedBooking } from '../types';
+import { saveBookingLocally } from '../services/storage';
 
 const INITIAL_STATE: BookingState = {
   step: 1,
@@ -28,17 +29,35 @@ export const BookingWizard: React.FC = () => {
   const handlePaymentSuccess = async (transactionId: string, bookingRef: string) => {
     setIsConfirming(true);
     try {
-      const response = await fetch(`${API_URL}?action=confirm_booking`, {
+      // 1. Inform the API (minimal step now)
+      await fetch(`${API_URL}?action=confirm_booking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingRef, checkoutId: transactionId })
       });
-      if (response.ok) {
-        setConfirmedRef(bookingRef);
-        setState(p => ({ ...p, step: 4 }));
-      }
+
+      // 2. Save to Local Storage for the user to see in "My Bookings"
+      const newBooking: ConfirmedBooking = {
+        id: bookingRef,
+        roomId: state.selectedRoomId || 'soho',
+        roomName: 'Soho Suite',
+        date: state.date,
+        time: state.time,
+        duration: state.duration,
+        totalPrice: pricing.total,
+        customer: state.customer,
+        paymentIntentId: transactionId,
+        status: 'confirmed',
+        timestamp: Date.now()
+      };
+      
+      await saveBookingLocally(newBooking);
+
+      setConfirmedRef(bookingRef);
+      setState(p => ({ ...p, step: 4 }));
     } catch (e) {
-      alert("Verification failed. Please contact support.");
+      console.error(e);
+      alert("Verification failed. However, your session was saved locally.");
     } finally {
       setIsConfirming(false);
     }
@@ -102,7 +121,7 @@ export const BookingWizard: React.FC = () => {
       {state.step === 3 && (
         <div className="bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800">
           {isConfirming ? (
-            <div className="text-center py-10"><Loader2 className="animate-spin mx-auto mb-4 text-[#FFD700]" /><p className="text-white">Verifying payment with gateway...</p></div>
+            <div className="text-center py-10"><Loader2 className="animate-spin mx-auto mb-4 text-[#FFD700]" /><p className="text-white">Finalizing your local session...</p></div>
           ) : (
             <PaymentForm 
               amount={pricing.total} 

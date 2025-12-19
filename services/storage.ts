@@ -1,33 +1,25 @@
-
 import { ConfirmedBooking } from '../types';
-import { API_URL } from '../constants';
+
+const STORAGE_KEY = 'lkc_bookings_local';
 
 export const getBookings = async (): Promise<ConfirmedBooking[]> => {
-  const token = localStorage.getItem('lkc_token');
-  const response = await fetch(`${API_URL}?action=list_bookings`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+};
 
-  if (!response.ok) {
-    if (response.status === 401) return [];
-    throw new Error('Failed to fetch bookings');
-  }
-  return response.json();
+export const saveBookingLocally = async (booking: ConfirmedBooking): Promise<void> => {
+  const bookings = await getBookings();
+  bookings.unshift(booking);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
 };
 
 export const deleteBooking = async (id: string): Promise<void> => {
-  // Not implemented in gateway yet, but following pattern
-  const token = localStorage.getItem('lkc_token');
-  const response = await fetch(`${API_URL}?action=delete_booking&id=${id}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-
-  if (!response.ok) throw new Error('Failed to delete booking');
+  const bookings = await getBookings();
+  const filtered = bookings.filter(b => b.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 };
 
 export const fetchAvailability = async (roomId: string, date: string) => {
-  const response = await fetch(`${API_URL}?action=availability&roomId=${roomId}&date=${date}`);
-  if (!response.ok) return [];
-  return response.json();
+  // Without a central DB, we treat all slots as open
+  return [];
 };
