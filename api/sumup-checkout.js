@@ -1,10 +1,13 @@
 
 const fetch = require('node-fetch');
-const { Firestore } = require('@google-cloud/firestore');
+const mysql = require('mysql2/promise');
 
-// Initialize Firestore
-// In a real GCP environment, this uses service account credentials from env
-const db = new Firestore();
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+});
 
 const SUMUP_API_KEY = process.env.SUMUP_API_KEY || 'sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr';
 const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com';
@@ -18,15 +21,10 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { amount, currency = 'GBP', roomName, date, time, duration, guests, customerEmail, customerName, customerPhone } = req.body;
-
-    if (!amount || !customerEmail) {
-      return res.status(400).json({ error: 'Missing required booking information' });
-    }
+    const { amount, date, time, duration, guests, customerEmail, customerName, customerPhone } = req.body;
 
     const bookingRef = `LKC-${Date.now().toString(36).toUpperCase()}`;
 
-    // 1. Create SumUp Checkout
     const sumupResponse = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
       headers: {
@@ -36,50 +34,24 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         checkout_reference: bookingRef,
         amount: parseFloat(amount),
-        currency: currency,
+        currency: 'GBP',
         pay_to_email: SUMUP_MERCHANT_EMAIL,
-        description: `Booking: ${roomName || 'Karaoke'} - ${date} ${time}`
+        description: `Booking - ${date} ${time}`
       })
     });
 
     const sumupData = await sumupResponse.json();
-    let checkoutId = sumupData.id;
+    let checkoutId = SUMUP_API_KEY.startsWith('sup_pk') ? `mock-${Date.now()}` : sumupData.id;
 
-    // Handle public key / dev mode
-    if (SUMUP_API_KEY.startsWith('sup_pk') || sumupResponse.status === 401) {
-      checkoutId = `mock-checkout-${Date.now()}`;
-    }
+    await pool.execute(
+      `INSERT INTO bookings (booking_ref, checkout_id, amount, date, time, duration, guests, customer_name, customer_email, customer_phone, status, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [bookingRef, checkoutId, amount, date, time, duration, guests, customerName, customerEmail, customerPhone, new Date().toISOString()]
+    );
 
-    // 2. Save Pending Booking to Google Cloud Firestore
-    const bookingData = {
-      bookingRef,
-      checkoutId,
-      amount: parseFloat(amount),
-      currency,
-      roomName: roomName || 'Soho Suite',
-      date,
-      time,
-      duration: parseInt(duration),
-      guests: parseInt(guests),
-      customer: {
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone
-      },
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-
-    await db.collection('bookings').doc(bookingRef).set(bookingData);
-
-    return res.status(200).json({
-      checkoutId,
-      bookingRef,
-      amount
-    });
+    return res.status(200).json({ checkoutId, bookingRef, amount });
 
   } catch (err) {
-    console.error('GCP Firestore/SumUp Error:', err);
-    return res.status(500).json({ error: 'Failed to initialize booking in Google Cloud', message: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
