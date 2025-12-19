@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { DURATIONS, TIMES, API_URL } from '../constants';
