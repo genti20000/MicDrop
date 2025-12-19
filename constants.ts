@@ -1,4 +1,3 @@
-
 import { Room } from "./types";
 
 // For Hostinger, we use the local PHP gateway

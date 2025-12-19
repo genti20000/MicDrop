@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -26,7 +25,8 @@ export default function AdminDashboard() {
   const fetchAdminData = async () => {
     try {
       const token = localStorage.getItem('lkc_token');
-      const res = await fetch(`${API_URL}/admin/bookings`, {
+      // Changed to use action parameter for gateway consistency
+      const res = await fetch(`${API_URL}?action=admin_bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
