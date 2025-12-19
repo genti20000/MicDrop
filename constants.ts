@@ -1,7 +1,8 @@
 import { Room } from "./types";
 
 // For Hostinger, we use the local PHP gateway
-export const API_URL = "/api/gateway.php";
+// The .htaccess routes /api/action to gateway.php?action=action
+export const API_URL = "/api";
 
 // SumUp Public Key (for frontend initialization)
 export const SUMUP_PUBLIC_KEY = "sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr";
