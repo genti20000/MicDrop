@@ -2,7 +2,8 @@
 {
   "framework": "nextjs",
   "rewrites": [
-    { "source": "/api/sumup/create-checkout", "destination": "/api/sumup-checkout" },
+    { "source": "/api/sumup-checkout", "destination": "/api/sumup-checkout.js" },
+    { "source": "/api/confirm-booking", "destination": "/api/confirm-booking.js" },
     { "source": "/webhook", "destination": "/api/webhook" }
   ]
 }

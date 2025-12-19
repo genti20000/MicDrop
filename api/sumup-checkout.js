@@ -1,39 +1,32 @@
 
 const fetch = require('node-fetch');
+const { Firestore } = require('@google-cloud/firestore');
 
-// SumUp Configuration
+// Initialize Firestore
+// In a real GCP environment, this uses service account credentials from env
+const db = new Firestore();
+
 const SUMUP_API_KEY = process.env.SUMUP_API_KEY || 'sup_pk_jgRGG5OvqWr64ISrm38xs7owSSexGN2Zr';
 const SUMUP_MERCHANT_EMAIL = process.env.SUMUP_MERCHANT_EMAIL || 'genti28@gmail.com';
 
 module.exports = async (req, res) => {
-  // 1. Handle CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  console.log('--- SumUp Checkout Request Received ---');
-  
   try {
-    const body = req.body;
-    const { amount, currency = 'GBP', roomName, date, time } = body;
+    const { amount, currency = 'GBP', roomName, date, time, duration, guests, customerEmail, customerName, customerPhone } = req.body;
 
-    if (!amount) {
-      return res.status(400).json({ error: 'Missing amount' });
+    if (!amount || !customerEmail) {
+      return res.status(400).json({ error: 'Missing required booking information' });
     }
 
-    // 2. Generate Reference
     const bookingRef = `LKC-${Date.now().toString(36).toUpperCase()}`;
 
-    // 3. Call SumUp API
-    // Note: We use the server-side SumUp Checkouts API
+    // 1. Create SumUp Checkout
     const sumupResponse = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
       headers: {
@@ -49,43 +42,44 @@ module.exports = async (req, res) => {
       })
     });
 
-    const data = await sumupResponse.json();
+    const sumupData = await sumupResponse.json();
+    let checkoutId = sumupData.id;
 
-    if (!sumupResponse.ok) {
-      console.error('SumUp API Error:', data);
-      
-      // If the API key is a Public Key (starts with sup_pk), this endpoint will fail.
-      // We provide a mock fallback for development if the key is likely invalid for checkouts.
-      if (SUMUP_API_KEY.startsWith('sup_pk') || sumupResponse.status === 401) {
-        console.warn('Invalid or Public Key used for server-side checkout. Falling back to Mock ID for testing.');
-        return res.status(200).json({
-          checkoutId: `mock-checkout-${Date.now()}`,
-          bookingRef: bookingRef,
-          amount: amount,
-          status: 'MOCK_MODE'
-        });
-      }
-      
-      return res.status(sumupResponse.status).json({ 
-        error: data.message || 'SumUp checkout failed',
-        details: data 
-      });
+    // Handle public key / dev mode
+    if (SUMUP_API_KEY.startsWith('sup_pk') || sumupResponse.status === 401) {
+      checkoutId = `mock-checkout-${Date.now()}`;
     }
 
-    console.log('SumUp Checkout Created:', data.id);
+    // 2. Save Pending Booking to Google Cloud Firestore
+    const bookingData = {
+      bookingRef,
+      checkoutId,
+      amount: parseFloat(amount),
+      currency,
+      roomName: roomName || 'Soho Suite',
+      date,
+      time,
+      duration: parseInt(duration),
+      guests: parseInt(guests),
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone
+      },
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
 
-    // 4. Return success
+    await db.collection('bookings').doc(bookingRef).set(bookingData);
+
     return res.status(200).json({
-      checkoutId: data.id,
-      bookingRef: bookingRef,
-      amount: amount
+      checkoutId,
+      bookingRef,
+      amount
     });
 
   } catch (err) {
-    console.error('Fatal API Error:', err);
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: err.message
-    });
+    console.error('GCP Firestore/SumUp Error:', err);
+    return res.status(500).json({ error: 'Failed to initialize booking in Google Cloud', message: err.message });
   }
 };

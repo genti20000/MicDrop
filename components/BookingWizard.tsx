@@ -1,353 +1,143 @@
 
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { CheckCircle, Calendar, User, AlertCircle, ChevronDown, MapPin } from 'lucide-react';
+import { CheckCircle, Calendar, User, AlertCircle, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 
-import { ROOMS, DURATIONS, TIMES } from '../constants';
+import { ROOMS, DURATIONS, TIMES, API_URL } from '../constants';
 import { StepIndicator } from './StepIndicator';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { PaymentForm } from './PaymentForm';
 import { calculatePrice, formatCurrency } from '../services/pricing';
-import { saveBooking, fetchAvailability, BusySlot } from '../services/storage';
 import { BookingState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 const INITIAL_STATE: BookingState = {
   step: 1,
-  selectedRoomId: ROOMS[0].id, // Default to the only room (Soho)
+  selectedRoomId: ROOMS[0].id,
   date: new Date().toISOString().split('T')[0],
   time: '20:00',
   duration: 2,
-  guests: 8, // Minimum 8 guests default
-  customer: {
-    name: '',
-    email: '',
-    phone: '',
-    notes: ''
-  }
+  guests: 8,
+  customer: { name: '', email: '', phone: '', notes: '' }
 };
 
 export const BookingWizard: React.FC = () => {
   const { user } = useAuth();
   const [state, setState] = useState<BookingState>(INITIAL_STATE);
-  const [confirmedId, setConfirmedId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [busySlots, setBusySlots] = useState<BusySlot[]>([]);
-  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [confirmedRef, setConfirmedRef] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  // Pre-fill user data when wizard mounts or user logs in
   useEffect(() => {
     if (user) {
       setState(prev => ({
         ...prev,
-        customer: {
-          ...prev.customer,
-          name: user.name,
-          email: user.email
-        }
+        customer: { ...prev.customer, name: user.user_metadata?.name || '', email: user.email || '' }
       }));
     }
   }, [user]);
 
-  const selectedRoom = ROOMS.find(r => r.id === state.selectedRoomId);
-  // Calculate price based on guests and duration
-  const pricing = selectedRoom 
-    ? calculatePrice(state.guests, state.duration) 
-    : null;
-
+  const pricing = calculatePrice(state.guests, state.duration);
   const nextStep = () => setState(prev => ({ ...prev, step: prev.step + 1 }));
   const prevStep = () => setState(prev => ({ ...prev, step: prev.step - 1 }));
 
-  // Check availability when on Date step (Step 1 now)
-  useEffect(() => {
-    if (state.selectedRoomId && state.step === 1) {
-      setCheckingAvailability(true);
-      fetchAvailability(state.selectedRoomId, state.date)
-        .then(setBusySlots)
-        .catch(err => console.error(err))
-        .finally(() => setCheckingAvailability(false));
-    }
-  }, [state.selectedRoomId, state.date, state.step]);
-
-  const isSlotAvailable = (checkTime: string, checkDuration: number) => {
-    const startHour = parseInt(checkTime.split(':')[0]);
-    const endHour = startHour + checkDuration;
-
-    return !busySlots.some(slot => {
-      const busyStart = parseInt(slot.time.split(':')[0]);
-      const busyEnd = busyStart + slot.duration;
-      return startHour < busyEnd && endHour > busyStart;
-    });
-  };
-
-  const handlePaymentSuccess = async (transactionId: string) => {
-    if (!selectedRoom || !pricing || !state.selectedRoomId) return;
-
-    setIsSaving(true);
-    const bookingId = Math.random().toString(36).substr(2, 9);
-    
-    const newBooking = {
-      id: bookingId,
-      roomId: state.selectedRoomId,
-      roomName: selectedRoom.name,
-      date: state.date,
-      time: state.time,
-      duration: state.duration,
-      totalPrice: pricing.total,
-      customer: state.customer,
-      paymentIntentId: transactionId, // Storing SumUp ID here
-      status: 'confirmed' as const,
-      timestamp: Date.now()
-    };
-
+  const handlePaymentSuccess = async (transactionId: string, bookingRef: string) => {
+    setIsConfirming(true);
     try {
-      await saveBooking(newBooking);
-      setConfirmedId(bookingId);
+      // Confirm the booking in Google Cloud Firestore
+      const response = await fetch(`${API_URL}/confirm-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingRef, checkoutId: transactionId })
+      });
+
+      if (!response.ok) throw new Error('Confirmation failed in Google Cloud');
+      
+      setConfirmedRef(bookingRef);
       nextStep();
-    } catch (error: any) {
-      console.error("Failed to save booking", error);
-      alert(`Booking Failed: ${error.message || "Please contact support."}`);
+    } catch (err) {
+      alert("Error confirming booking. Please contact support.");
     } finally {
-      setIsSaving(false);
+      setIsConfirming(false);
     }
   };
 
-  if (state.step === 4 && confirmedId) {
+  if (state.step === 4 && confirmedRef) {
     return (
       <div className="text-center py-12 px-6">
         <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-12 h-12 text-green-500" />
         </div>
         <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
-        <p className="text-zinc-400 mb-8">Get ready to sing your heart out at Soho.</p>
+        <p className="text-zinc-400 mb-8">Data safely stored in Google Cloud Firestore.</p>
         <div className="bg-zinc-900 p-6 rounded-xl max-w-sm mx-auto mb-8 border border-zinc-800 text-left">
            <div className="space-y-3 text-sm">
-             <div className="flex justify-between"><span className="text-zinc-500">Booking ID</span> <span className="font-mono text-white">{confirmedId}</span></div>
-             <div className="flex justify-between"><span className="text-zinc-500">Room</span> <span className="text-white">{selectedRoom?.name}</span></div>
-             <div className="flex justify-between"><span className="text-zinc-500">Date</span> <span className="text-white">{format(new Date(state.date), 'EEE, d MMM yyyy')}</span></div>
-             <div className="flex justify-between"><span className="text-zinc-500">Time</span> <span className="text-white">{state.time} ({state.duration} hrs)</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Booking Ref</span> <span className="font-mono text-[#FFD700]">{confirmedRef}</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Room</span> <span className="text-white">Soho Suite</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Total</span> <span className="text-white">{formatCurrency(pricing.total)}</span></div>
            </div>
         </div>
-        <Button onClick={() => window.location.reload()}>Book Another</Button>
+        <Button onClick={() => window.location.href = '/'}>Finish</Button>
       </div>
     );
   }
 
-  // Generate Guest Options (8 - Max Capacity)
-  const maxCapacity = selectedRoom?.capacity || 50;
-  const minGuests = 8;
-  const validMax = Math.max(minGuests, maxCapacity);
-  const guestOptions = Array.from(
-    { length: validMax - minGuests + 1 }, 
-    (_, i) => i + minGuests
-  );
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
       <StepIndicator currentStep={state.step} />
-
+      
       {state.step === 1 && (
         <div className="max-w-xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">Book Soho</h2>
-            <div className="inline-flex items-center gap-2 bg-zinc-900/80 px-4 py-1.5 rounded-full border border-zinc-800 text-sm text-zinc-400">
-               <MapPin size={14} className="text-[#FFD700]" />
-               <span>London's Premier Private Suite</span>
-            </div>
-          </div>
-          
-          <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 relative backdrop-blur-sm">
-            {checkingAvailability && (
-              <div className="absolute inset-0 bg-zinc-900/80 z-10 flex items-center justify-center rounded-2xl">
-                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700]"></div>
-              </div>
-            )}
-
-            <Input 
-              label="Date" 
-              type="date" 
-              min={new Date().toISOString().split('T')[0]}
-              value={state.date}
-              onChange={(e) => setState(prev => ({ ...prev, date: e.target.value }))}
-            />
-
+          <div className="text-center mb-8"><h2 className="text-3xl font-black uppercase text-white mb-2">Book Soho</h2></div>
+          <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 backdrop-blur-sm">
+            <Input label="Date" type="date" value={state.date} onChange={(e) => setState(prev => ({ ...prev, date: e.target.value }))} />
             <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Start Time</label>
-                 <div className="relative">
-                   <select 
-                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] disabled:opacity-50 appearance-none font-medium"
-                     value={state.time}
-                     onChange={(e) => setState(prev => ({ ...prev, time: e.target.value }))}
-                   >
-                     {TIMES.map(t => {
-                       const isAvailable = isSlotAvailable(t, state.duration);
-                       return (
-                         <option key={t} value={t} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
-                           {t} {!isAvailable && '(Booked)'}
-                         </option>
-                       );
-                     })}
-                   </select>
-                   <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
-                 </div>
+                 <label className="block text-xs font-bold uppercase text-neutral-500 mb-1.5">Start Time</label>
+                 <select className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:border-[#FFD700]" value={state.time} onChange={(e) => setState(prev => ({ ...prev, time: e.target.value }))}>
+                   {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                 </select>
                </div>
                <div>
-                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Duration</label>
-                 <div className="relative">
-                   <select 
-                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] appearance-none font-medium"
-                     value={state.duration}
-                     onChange={(e) => setState(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                   >
-                     {DURATIONS.map(d => {
-                       const isAvailable = isSlotAvailable(state.time, d);
-                       return (
-                        <option key={d} value={d} disabled={!isAvailable} className={!isAvailable ? 'text-zinc-600' : ''}>
-                          {d} Hours {!isAvailable && '(Unavailable)'}
-                        </option>
-                       );
-                     })}
-                   </select>
-                   <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
-                 </div>
+                 <label className="block text-xs font-bold uppercase text-neutral-500 mb-1.5">Duration</label>
+                 <select className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:border-[#FFD700]" value={state.duration} onChange={(e) => setState(prev => ({ ...prev, duration: Number(e.target.value) }))}>
+                   {DURATIONS.map(d => <option key={d} value={d}>{d} Hours</option>)}
+                 </select>
                </div>
             </div>
-            
-            {!isSlotAvailable(state.time, state.duration) && (
-               <div className="flex items-center text-red-400 text-sm mt-2 bg-red-900/10 p-2 rounded">
-                  <AlertCircle size={16} className="mr-2" />
-                  This time slot is currently unavailable. Please change your time or duration.
-               </div>
-            )}
-
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
-                Number of Guests (Min {minGuests} - Max {maxCapacity})
-              </label>
-              <div className="relative">
-                <select 
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700] focus:ring-1 focus:ring-[#FFD700] transition-all font-medium appearance-none"
-                  value={state.guests}
-                  onChange={(e) => setState(prev => ({ ...prev, guests: Number(e.target.value) }))}
-                >
-                  {guestOptions.map(num => (
-                    <option key={num} value={num}>
-                      {num} {num === 1 ? 'Person' : 'People'}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 text-zinc-500 pointer-events-none" size={16} />
-              </div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1.5">Guests (8-100)</label>
+              <select className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:border-[#FFD700]" value={state.guests} onChange={(e) => setState(prev => ({ ...prev, guests: Number(e.target.value) }))}>
+                {Array.from({length: 93}, (_, i) => i + 8).map(n => <option key={n} value={n}>{n} People</option>)}
+              </select>
             </div>
-
-            {pricing && (
-              <div className="mt-6 p-4 bg-black rounded-lg border border-zinc-800">
-                <div className="flex justify-between text-sm text-zinc-400 mb-1">
-                  <span>Base Price ({state.guests} guests @ £19pp)</span>
-                  <span>{formatCurrency(pricing.basePrice)}</span>
-                </div>
-                {pricing.surcharge > 0 && (
-                  <div className="flex justify-between text-sm text-[#FFD700] mb-1">
-                    <span>Extension (+{state.duration - 2} hrs)</span>
-                    <span>+{formatCurrency(pricing.surcharge)}</span>
-                  </div>
-                )}
-                <div className="border-t border-zinc-800 my-2 pt-2 flex justify-between font-bold text-lg text-white">
-                  <span>Total</span>
-                  <span>{formatCurrency(pricing.total)}</span>
-                </div>
-              </div>
-            )}
+            <div className="mt-6 p-4 bg-black rounded-lg border border-zinc-800">
+               <div className="flex justify-between font-bold text-lg text-white"><span>Total</span><span>{formatCurrency(pricing.total)}</span></div>
+            </div>
           </div>
-
-          <div className="flex justify-end mt-8">
-            <Button 
-              className="w-full md:w-auto" 
-              onClick={nextStep} 
-              disabled={!isSlotAvailable(state.time, state.duration)}
-            >
-              Next: Details
-            </Button>
-          </div>
+          <div className="flex justify-end mt-8"><Button onClick={nextStep}>Next: Details</Button></div>
         </div>
       )}
 
       {state.step === 2 && (
         <div className="max-w-xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
-            <User className="text-[#FFD700]" /> Your Details
-          </h2>
-          
-          <div className="space-y-4 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 backdrop-blur-sm">
-            <Input 
-              label="Full Name" 
-              placeholder="Ziggy Stardust"
-              value={state.customer.name}
-              onChange={(e) => setState(prev => ({ ...prev, customer: { ...prev.customer, name: e.target.value } }))}
-            />
-            <Input 
-              label="Email Address" 
-              type="email"
-              placeholder="ziggy@mars.com"
-              value={state.customer.email}
-              onChange={(e) => setState(prev => ({ ...prev, customer: { ...prev.customer, email: e.target.value } }))}
-            />
-            <Input 
-              label="Phone Number" 
-              type="tel"
-              placeholder="+44 7700 900000"
-              value={state.customer.phone}
-              onChange={(e) => setState(prev => ({ ...prev, customer: { ...prev.customer, phone: e.target.value } }))}
-            />
-             <Input 
-              label="Special Requests (Optional)" 
-              placeholder="Birthday, Specific songs, etc."
-              value={state.customer.notes}
-              onChange={(e) => setState(prev => ({ ...prev, customer: { ...prev.customer, notes: e.target.value } }))}
-            />
+          <h2 className="text-2xl font-bold mb-6 text-white">Your Details</h2>
+          <div className="space-y-4 bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800">
+            <Input label="Name" value={state.customer.name} onChange={e => setState(p => ({ ...p, customer: { ...p.customer, name: e.target.value }}))} />
+            <Input label="Email" value={state.customer.email} onChange={e => setState(p => ({ ...p, customer: { ...p.customer, email: e.target.value }}))} />
+            <Input label="Phone" value={state.customer.phone} onChange={e => setState(p => ({ ...p, customer: { ...p.customer, phone: e.target.value }}))} />
           </div>
-
-          <div className="flex gap-4 mt-8">
-            <Button variant="secondary" onClick={prevStep}>Back</Button>
-            <Button 
-              className="flex-1" 
-              onClick={nextStep}
-              disabled={!state.customer.name || !state.customer.email || !state.customer.phone}
-            >
-              Next: Payment
-            </Button>
-          </div>
+          <div className="flex gap-4 mt-8"><Button variant="secondary" onClick={prevStep}>Back</Button><Button className="flex-1" onClick={nextStep} disabled={!state.customer.name || !state.customer.email}>Next: Payment</Button></div>
         </div>
       )}
 
-      {state.step === 3 && pricing && (
+      {state.step === 3 && (
         <div className="max-w-xl mx-auto">
-          <div className="text-center mb-8">
-             <h2 className="text-2xl font-bold mb-2 text-white">Secure Checkout</h2>
-             <p className="text-zinc-400">Complete your booking for <span className="text-white font-bold">{selectedRoom?.name}</span></p>
-          </div>
-
-          {isSaving ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-4"></div>
-              <p className="text-zinc-400">Finalizing your booking...</p>
-            </div>
+          <div className="text-center mb-8"><h2 className="text-2xl font-bold text-white">Secure Checkout</h2></div>
+          {isConfirming ? (
+            <div className="text-center py-12"><Loader2 className="animate-spin h-12 w-12 text-[#FFD700] mx-auto mb-4"/><p className="text-zinc-400">Updating Google Cloud Firestore...</p></div>
           ) : (
-            <PaymentForm 
-              amount={pricing.total} 
-              onBack={prevStep}
-              onSuccess={handlePaymentSuccess}
-              metadata={{
-                roomId: state.selectedRoomId,
-                roomName: selectedRoom?.name,
-                date: state.date,
-                time: state.time,
-                duration: state.duration,
-                customerEmail: state.customer.email
-              }}
-            />
+            <PaymentForm amount={pricing.total} onBack={prevStep} onSuccess={handlePaymentSuccess} metadata={{ ...state.customer, roomName: 'Soho Suite', date: state.date, time: state.time, duration: state.duration, guests: state.guests }} />
           )}
         </div>
       )}
