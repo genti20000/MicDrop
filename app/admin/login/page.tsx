@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, ShieldCheck, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock, AlertCircle, ArrowLeft, Info } from 'lucide-react';
 
 export default function AdminLogin() {
   const { login } = useAuth();
@@ -102,6 +102,17 @@ export default function AdminLogin() {
             {loading ? <Loader2 className="animate-spin" /> : 'Authenticate'}
           </button>
         </form>
+
+        <div className="mt-8 pt-6 border-t border-neutral-800">
+            <div className="bg-neutral-900/50 p-3 rounded-lg flex items-start gap-3">
+                <Info size={16} className="text-[#FFD700] mt-0.5 flex-shrink-0" />
+                <div className="text-[11px] text-neutral-400 leading-relaxed">
+                    <p className="font-bold text-neutral-300 uppercase mb-1">Dev Credentials:</p>
+                    <p>Email: <span className="text-white font-mono">admin@londonkaraoke.club</span></p>
+                    <p>Pass: <span className="text-white font-mono">admin123</span></p>
+                </div>
+            </div>
+        </div>
 
         <div className="mt-6 text-center">
             <button onClick={() => window.location.hash = ''} className="text-neutral-500 hover:text-white text-sm transition-colors inline-flex items-center gap-2">

@@ -25,6 +25,60 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Database Initialization
+async function initDb() {
+  try {
+    // Create Users Table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create Bookings Table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        booking_ref VARCHAR(50) UNIQUE NOT NULL,
+        checkout_id VARCHAR(100),
+        amount DECIMAL(10, 2) NOT NULL,
+        date DATE NOT NULL,
+        time TIME NOT NULL,
+        duration INT NOT NULL,
+        guests INT NOT NULL,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255) NOT NULL,
+        customer_phone VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        paid_at DATETIME
+      )
+    `);
+
+    // Seed Default Admin if none exists
+    const [rows] = await pool.execute('SELECT id FROM users WHERE role = "admin" LIMIT 1');
+    if (rows.length === 0) {
+      const adminEmail = 'admin@londonkaraoke.club';
+      const adminPass = 'admin123';
+      const hashedPass = await bcrypt.hash(adminPass, 10);
+      await pool.execute(
+        'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        ['System Admin', adminEmail, hashedPass, 'admin']
+      );
+      console.log('✅ Default admin created: admin@londonkaraoke.club / admin123');
+    }
+  } catch (err) {
+    console.error('❌ DB Init Error:', err.message);
+  }
+}
+
+initDb();
+
 app.use(cors());
 app.use(express.json());
 
@@ -47,7 +101,6 @@ app.post('/api/auth/register', async (req, res) => {
     if (rows.length > 0) return res.status(400).json({ error: 'User exists' });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    // Note: Added 'role' column with default 'user'
     await pool.execute(
       'INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)',
       [name, email, passwordHash, 'user', new Date().toISOString()]
@@ -90,8 +143,8 @@ app.get('/api/availability', async (req, res) => {
   const { roomId, date } = req.query;
   try {
     const [rows] = await pool.execute(
-      'SELECT time, duration FROM bookings WHERE room_id = ? AND date = ? AND status = "confirmed"',
-      [roomId || 'soho', date]
+      'SELECT time, duration FROM bookings WHERE date = ? AND status = "confirmed"',
+      [date]
     );
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -126,7 +179,6 @@ app.post('/api/sumup/create-checkout', async (req, res) => {
       checkoutId = sumupData.id;
     }
 
-    // Save Pending Booking to MySQL
     await pool.execute(
       `INSERT INTO bookings 
       (booking_ref, checkout_id, amount, date, time, duration, guests, customer_name, customer_email, customer_phone, status, created_at) 
