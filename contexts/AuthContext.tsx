@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../constants';
 
 interface AuthContextType {
   user: any | null;
@@ -9,9 +10,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Local User Store (Mock Database in LocalStorage)
-const USERS_KEY = 'lkc_mock_users';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
@@ -25,49 +23,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const getLocalUsers = () => {
-    const data = localStorage.getItem(USERS_KEY);
-    return data ? JSON.parse(data) : [];
-  };
-
   const login = async (email: string, password: string) => {
-    // In a real app this is insecure, but this is a DB-less local version
-    const users = getLocalUsers();
-    const found = users.find((u: any) => u.email === email && u.password === password);
-    
-    if (!found) {
-      // Special case for default admin
-      if (email === 'admin@londonkaraoke.club' && password === 'admin123') {
-        const admin = { name: 'System Admin', email, role: 'admin' };
-        localStorage.setItem('lkc_active_user', JSON.stringify(admin));
-        setUser(admin);
-        return;
-      }
-      throw new Error('Invalid credentials');
+    const response = await fetch(`${API_URL}?action=login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Login failed');
     }
 
-    const { password: _, ...userWithoutPass } = found;
-    localStorage.setItem('lkc_active_user', JSON.stringify(userWithoutPass));
-    setUser(userWithoutPass);
+    const data = await response.json();
+    localStorage.setItem('lkc_active_user', JSON.stringify(data.user));
+    localStorage.setItem('lkc_token', data.token);
+    setUser(data.user);
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const users = getLocalUsers();
-    if (users.find((u: any) => u.email === email)) {
-      throw new Error('Email already registered');
+    const response = await fetch(`${API_URL}?action=register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Registration failed');
     }
 
-    const newUser = { name, email, password, role: 'user' };
-    users.push(newUser);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-    const { password: _, ...userWithoutPass } = newUser;
-    localStorage.setItem('lkc_active_user', JSON.stringify(userWithoutPass));
-    setUser(userWithoutPass);
+    // After register, attempt login
+    await login(email, password);
   };
 
   const logout = () => {
     localStorage.removeItem('lkc_active_user');
+    localStorage.removeItem('lkc_token');
     setUser(null);
   };
 
