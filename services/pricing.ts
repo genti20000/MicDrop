@@ -1,17 +1,36 @@
-
 import { PricingBreakdown } from "../types";
 
-// Base price calculation based on tiers
-const getBaseTierPrice = (guests: number): number => {
-  if (guests <= 8) return 152;
-  if (guests <= 30) return guests * 19;
-  if (guests <= 40) return 650;
-  if (guests <= 50) return 700;
-  if (guests <= 60) return 750;
-  if (guests <= 70) return 800;
-  if (guests <= 80) return 850;
-  if (guests <= 90) return 900;
-  return 1000; // 91-100
+// Dynamic configuration for future-proofing
+const PRICING_CONFIG = {
+  rooms: {
+    soho: {
+      minGuests: 8,
+      basePricePerGuest: 19,
+      tiers: [
+        { min: 1, max: 8, price: 152 },
+        { min: 9, max: 30, perGuest: 19 },
+        { min: 31, max: 40, price: 650 },
+        { min: 41, max: 50, price: 700 },
+        { min: 51, max: 60, price: 750 },
+        { min: 61, max: 70, price: 800 },
+        { min: 71, max: 80, price: 850 },
+        { min: 81, max: 90, price: 900 },
+        { min: 91, max: 100, price: 1000 },
+      ],
+      extensionFees: {
+        1: 100, // +1 hr (3 total)
+        2: 175, // +2 hr (4 total)
+        3: 250, // +3 hr (5 total)
+        4: 300, // +4 hr (6 total)
+      }
+    }
+  },
+  discounts: {
+    midweek: {
+      days: [1, 2, 3], // Mon, Tue, Wed
+      percentage: 0.25
+    }
+  }
 };
 
 export interface EnhancedPricingBreakdown extends PricingBreakdown {
@@ -22,41 +41,42 @@ export interface EnhancedPricingBreakdown extends PricingBreakdown {
 export const calculatePrice = (
   guests: number,
   duration: number,
-  dateString: string
+  dateString: string,
+  roomId: string = 'soho'
 ): EnhancedPricingBreakdown => {
-  const basePrice = getBaseTierPrice(guests);
+  const roomConfig = (PRICING_CONFIG.rooms as any)[roomId] || PRICING_CONFIG.rooms.soho;
   
-  // Midweek Discount check (Mon, Tue, Wed)
-  // Date format is YYYY-MM-DD
+  // 1. Base Tier Calculation
+  let basePrice = 0;
+  const tier = roomConfig.tiers.find((t: any) => guests >= t.min && guests <= t.max);
+  
+  if (tier) {
+    basePrice = tier.price || (guests * (tier.perGuest || roomConfig.basePricePerGuest));
+  } else {
+    // Fallback if no tier matches
+    basePrice = guests * roomConfig.basePricePerGuest;
+  }
+
+  // 2. Midweek Discount
   const date = new Date(dateString);
-  const day = date.getDay(); // 0 (Sun) to 6 (Sat)
-  const isMidweek = day >= 1 && day <= 3; // Mon(1), Tue(2), Wed(3)
-  
-  const discountAmount = isMidweek ? basePrice * 0.25 : 0;
-  
-  // Extension Fees
-  // 2 hours is base. 
-  // +1 hr (3 total) = 100
-  // +2 hr (4 total) = 175
-  // +3 hr (5 total) = 250
-  // +4 hr (6 total) = 300
-  let extensionPrice = 0;
+  const day = date.getDay(); 
+  const midweekConfig = PRICING_CONFIG.discounts.midweek;
+  const isMidweek = midweekConfig.days.includes(day);
+  const discountAmount = isMidweek ? basePrice * midweekConfig.percentage : 0;
+
+  // 3. Extension Fees
   const extraHours = duration - 2;
-  
-  if (extraHours === 1) extensionPrice = 100;
-  else if (extraHours === 2) extensionPrice = 175;
-  else if (extraHours === 3) extensionPrice = 250;
-  else if (extraHours >= 4) extensionPrice = 300;
-  
+  const extensionPrice = (roomConfig.extensionFees as any)[extraHours] || 0;
+
   const total = (basePrice - discountAmount) + extensionPrice;
-  
+
   return {
     basePrice,
-    isWeekend: day === 0 || day === 6 || day === 5, // Fri, Sat, Sun
+    isWeekend: day === 0 || day === 5 || day === 6, // Sun, Fri, Sat
     surcharge: extensionPrice,
     discountAmount,
     extensionPrice,
-    total
+    total: Number(total.toFixed(2))
   };
 };
 

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -40,7 +39,7 @@ async function initDb() {
       )
     `);
 
-    // Create Bookings Table
+    // Create Bookings Table with unique booking_ref
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS bookings (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -152,7 +151,8 @@ app.get('/api/availability', async (req, res) => {
 
 app.post('/api/sumup/create-checkout', async (req, res) => {
   const { amount, date, time, duration, guests, name, email, phone } = req.body;
-  const bookingRef = `LKC-${Date.now().toString(36).toUpperCase()}`;
+  // Format: BK<timestamp>
+  const bookingRef = `BK${Date.now()}`;
 
   try {
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {

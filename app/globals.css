@@ -12,6 +12,7 @@ body {
   color: rgb(var(--foreground-rgb));
   background: #050505;
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 /* Custom Scrollbar */
@@ -34,14 +35,20 @@ body {
   color: #000;
 }
 
-/* Native Date Picker Styling */
+/* --- Native Date Picker Theme Styling --- */
 input[type="date"] {
-  position: relative;
   appearance: none;
   -webkit-appearance: none;
-  min-height: 4rem;
+  color-scheme: dark;
+  cursor: pointer;
+  background: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 4rem; /* Match the vertical size of other inputs */
+  line-height: 1;
 }
 
+/* Hide the default icon but keep the picker functional on the entire field */
 input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   top: 0;
@@ -56,15 +63,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   z-index: 10;
 }
 
-/* The actual display of the date text */
+/* Styling the selected date text */
 input[type="date"]::-webkit-datetime-edit {
   display: flex;
-  padding-left: 0.5rem;
+  align-items: center;
+  height: 100%;
 }
 
 input[type="date"]::-webkit-datetime-edit-fields-wrapper {
   color: #fff;
   font-weight: 700;
+  font-size: 1.125rem; /* text-lg */
+  padding: 0;
 }
 
 input[type="date"]::-webkit-datetime-edit-text,
@@ -72,10 +82,19 @@ input[type="date"]::-webkit-datetime-edit-month-field,
 input[type="date"]::-webkit-datetime-edit-day-field,
 input[type="date"]::-webkit-datetime-edit-year-field {
   color: #fff;
+  padding: 0 1px;
 }
 
-input[type="date"]:invalid::-webkit-datetime-edit {
-  color: #525252;
+/* Ensure the calendar icon in the input box is visible if we want it, or hidden as we use Lucide icons */
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button {
+  display: none;
+}
+
+/* Dropdown Calendar Customization (where supported) */
+::-webkit-calendar-picker {
+  background-color: #0a0a0a;
+  color: white;
 }
 
 /* Disco Ball Animation */
@@ -148,17 +167,9 @@ input[type="date"]:invalid::-webkit-datetime-edit {
 }
 
 @keyframes sparkleSpread {
-  0% { 
-    transform: scale(0) translate(0, 0); 
-    opacity: 0; 
-  }
-  20% { 
-    opacity: 1; 
-  }
-  100% { 
-    transform: scale(0.5) translate(60px, 60px); 
-    opacity: 0; 
-  }
+  0% { transform: scale(0) translate(0, 0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: scale(0.5) translate(60px, 60px); opacity: 0; }
 }
 
 /* Musical Notes Animation */
@@ -186,18 +197,8 @@ input[type="date"]:invalid::-webkit-datetime-edit {
 }
 
 @keyframes floatUp {
-  0% { 
-    transform: translateY(0) rotate(0deg) scale(0.8); 
-    opacity: 0; 
-  }
-  20% { 
-    opacity: 0.4; 
-  }
-  80% { 
-    opacity: 0.2; 
-  }
-  100% { 
-    transform: translateY(-200px) rotate(45deg) scale(1.1); 
-    opacity: 0; 
-  }
+  0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
+  20% { opacity: 0.4; }
+  80% { opacity: 0.2; }
+  100% { transform: translateY(-200px) rotate(45deg) scale(1.1); opacity: 0; }
 }
