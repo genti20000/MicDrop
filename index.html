@@ -40,14 +40,63 @@
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #18181b;
+        background: #050505;
       }
       ::-webkit-scrollbar-thumb {
-        background: #3f3f46;
+        background: #27272a;
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #52525b;
+        background: #3f3f46;
+      }
+
+      /* Native Date Picker Customization */
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(0.8);
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+      }
+      input[type="date"] {
+        color-scheme: dark;
+      }
+      
+      /* Animation classes */
+      .animate-in {
+        animation-duration: 500ms;
+        animation-fill-mode: both;
+      }
+      .fade-in {
+        animation-name: fadeIn;
+      }
+      .slide-in-from-bottom-4 {
+        animation-name: slideInFromBottom;
+      }
+      .slide-in-from-right-4 {
+        animation-name: slideInFromRight;
+      }
+      .zoom-in-95 {
+        animation-name: zoomIn;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideInFromBottom {
+        from { transform: translateY(1rem); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes slideInFromRight {
+        from { transform: translateX(1rem); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes zoomIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
       }
     </style>
   <script type="importmap">
