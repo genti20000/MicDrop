@@ -126,7 +126,7 @@ export default function BookingWizard() {
   };
 
   const renderConfig = () => (
-    <div className="space-y-6 sm:space-y-8 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 sm:space-y-8 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 px-2 sm:px-0">
       <div className="space-y-2 text-center">
         <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter text-white text-balance">Select Your Session</h2>
         <p className="text-neutral-500 text-xs sm:text-sm font-medium uppercase tracking-widest flex items-center justify-center gap-2">
@@ -137,19 +137,19 @@ export default function BookingWizard() {
       <div className="space-y-4 sm:space-y-6">
         {/* Date Selector */}
         <div className="flex flex-col">
-          <label className="block text-brand-yellow mb-2 text-[10px] font-black uppercase tracking-[0.2em] ml-1">Booking Date</label>
+          <label className="block text-brand-yellow mb-2 text-[10px] font-black uppercase tracking-[0.2em] ml-1">Session Date</label>
           <div 
             onClick={handleBoxClick}
-            className="relative group bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl transition-all cursor-pointer flex items-center h-16 sm:h-20 shadow-xl overflow-hidden"
+            className="relative group bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl transition-all cursor-pointer flex items-center h-[4.5rem] shadow-xl overflow-hidden px-5"
           >
-            <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500 group-hover:text-brand-yellow transition-colors pointer-events-none z-20" size={20} />
+            <Calendar className="text-neutral-500 group-hover:text-brand-yellow transition-colors pointer-events-none z-20 shrink-0 mr-4" size={20} />
             <input 
               ref={dateInputRef}
               type="date" 
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setDate(e.target.value)}
               value={date}
-              className="w-full h-full bg-transparent border-none focus:ring-0 outline-none text-white font-bold text-lg pl-14 pr-4 cursor-pointer z-10"
+              className="z-10 focus:outline-none w-full"
             />
             <div className="absolute inset-0 rounded-2xl border border-transparent group-focus-within:border-brand-yellow transition-all pointer-events-none"></div>
           </div>
@@ -164,7 +164,7 @@ export default function BookingWizard() {
               <select 
                 onChange={(e) => setTime(e.target.value)}
                 value={time}
-                className="w-full h-16 sm:h-20 bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl pl-12 pr-10 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
+                className="w-full h-[4.5rem] bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl pl-12 pr-10 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
               >
                 {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -177,7 +177,7 @@ export default function BookingWizard() {
               <select 
                 onChange={(e) => setDuration(Number(e.target.value))}
                 value={duration}
-                className="w-full h-16 sm:h-20 bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl px-5 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
+                className="w-full h-[4.5rem] bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl px-5 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
               >
                 {[2,3,4,5].map(n => <option key={n} value={n}>{n} Hours</option>)}
               </select>
@@ -194,7 +194,7 @@ export default function BookingWizard() {
                <select 
                 value={guests}
                 onChange={(e) => setGuests(Number(e.target.value))}
-                className="w-full h-16 sm:h-20 bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl pl-12 pr-10 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
+                className="w-full h-[4.5rem] bg-neutral-900/60 backdrop-blur-md border border-neutral-800 hover:border-brand-yellow/40 rounded-2xl pl-12 pr-10 text-white focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow outline-none appearance-none cursor-pointer font-bold text-lg transition-all"
               >
                 {Array.from({ length: 93 }, (_, i) => i + 8).map(num => (
                   <option key={num} value={num}>{num} People</option>
@@ -253,7 +253,7 @@ export default function BookingWizard() {
   );
 
   const renderDetails = () => (
-    <div className="space-y-6 max-w-lg mx-auto animate-in fade-in slide-in-from-right-8 duration-500">
+    <div className="space-y-6 max-w-lg mx-auto animate-in fade-in slide-in-from-right-8 duration-500 px-2 sm:px-0">
        <button onClick={() => setStep('config')} className="text-neutral-500 hover:text-white flex items-center gap-2 text-xs font-black uppercase tracking-widest mb-4 transition-colors">
           <ArrowLeft size={14} /> Back to Selection
        </button>
@@ -348,7 +348,7 @@ export default function BookingWizard() {
   );
 
   return (
-    <div className="min-h-screen bg-neutral-950 px-4 py-8 sm:py-12 flex flex-col justify-start">
+    <div className="min-h-screen bg-neutral-950 px-2 sm:px-4 py-8 sm:py-12 flex flex-col justify-start">
       {/* Progress Track */}
       <div className="flex justify-center mb-10 sm:mb-16 gap-3">
         {['config', 'details', 'payment'].map((s, idx) => (
